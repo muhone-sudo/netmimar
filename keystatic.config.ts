@@ -259,7 +259,13 @@ export default config({
                     }),
                     {
                         label: 'Galeri',
-                        itemLabel: (props) => props.value || 'Yeni Görsel',
+                        itemLabel: (props) => {
+                            const val = props.value;
+                            if (val && typeof val === 'object' && 'filename' in val) {
+                                return (val as any).filename || 'Yeni Görsel';
+                            }
+                            return typeof val === 'string' ? val : 'Yeni Görsel';
+                        },
                     }
                 ),
                 description: fields.document({
