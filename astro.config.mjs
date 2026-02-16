@@ -16,6 +16,12 @@ export default defineConfig({
     },
   }),
 
+  // Cloudflare adapter otomatik KV session eklemesin diye driver belirtiyoruz.
+  // Projede session kullanılmıyor (auth cookie/HMAC ile yapılıyor).
+  session: {
+    driver: 'fs-lite',
+  },
+
   integrations: [
     react(),
     keystatic(),
