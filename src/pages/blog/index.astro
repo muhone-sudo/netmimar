@@ -1,0 +1,90 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../../keystatic.config";
+
+const reader = createReader(process.cwd(), keystaticConfig);
+const blogRaw = await reader.collections.blog.all();
+const posts = blogRaw
+    .map((b) => ({ slug: b.slug, ...b.entry }))
+    .sort(
+        (a: any, b: any) =>
+            new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+    );
+---
+
+<BaseLayout title="Blog — NetMimar">
+    <section class="py-20 bg-surface">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-4">
+                    Blog
+                </h1>
+                <p class="text-text-muted max-w-2xl mx-auto">
+                    En son yazılarımıza göz atın.
+                </p>
+            </div>
+
+            {
+                posts.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {posts.map((post: any) => (
+                            <a
+                                href={`/blog/${post.slug}`}
+                                class="group bg-surface rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                            >
+                                {post.coverImage && (
+                                    <div class="aspect-video overflow-hidden">
+                                        <img
+                                            src={post.coverImage}
+                                            alt={post.title}
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
+                                    </div>
+                                )}
+                                <div class="p-6">
+                                    {post.category && (
+                                        <span
+                                            class="inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2"
+                                            style="background: rgba(59,130,246,0.1); color: #3b82f6;"
+                                        >
+                                            {post.category}
+                                        </span>
+                                    )}
+                                    <h2 class="text-lg font-semibold text-primary mb-2 group-hover:text-accent transition-colors">
+                                        {post.title}
+                                    </h2>
+                                    <div class="flex items-center gap-3 text-xs text-text-muted">
+                                        {post.date && (
+                                            <span>
+                                                {new Date(
+                                                    post.date
+                                                ).toLocaleDateString("tr-TR")}
+                                            </span>
+                                        )}
+                                        {post.author && (
+                                            <span>• {post.author}</span>
+                                        )}
+                                    </div>
+                                    {post.tags && post.tags.length > 0 && (
+                                        <div class="flex flex-wrap gap-1 mt-3">
+                                            {post.tags.map((tag: string) => (
+                                                <span class="text-xs px-2 py-0.5 rounded bg-surface-dark text-text-muted">
+                                                    {tag}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                ) : (
+                    <p class="text-center text-text-muted">
+                        Henüz blog yazısı eklenmemiş.
+                    </p>
+                )
+            }
+        </div>
+    </section>
+</BaseLayout>

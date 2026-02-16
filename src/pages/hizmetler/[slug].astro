@@ -1,0 +1,59 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../../keystatic.config";
+import { DocumentRenderer } from "@keystatic/core/renderer";
+
+const { slug } = Astro.params;
+const reader = createReader(process.cwd(), keystaticConfig);
+
+const service = slug ? await reader.collections.services.read(slug) : null;
+if (!service) {
+    return Astro.redirect("/hizmetler");
+}
+
+const content = await service.content();
+---
+
+<BaseLayout title={`${service.title} — Hizmetler`}>
+    <article class="py-20 bg-surface">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Breadcrumb -->
+            <nav class="mb-8 text-sm text-text-muted">
+                <a href="/" class="hover:text-primary transition-colors"
+                    >Ana Sayfa</a
+                >
+                <span class="mx-2">›</span>
+                <a
+                    href="/hizmetler"
+                    class="hover:text-primary transition-colors">Hizmetler</a
+                >
+                <span class="mx-2">›</span>
+                <span class="text-primary">{service.title}</span>
+            </nav>
+
+            {
+                service.featuredImage && (
+                    <div class="aspect-video rounded-2xl overflow-hidden mb-8">
+                        <img
+                            src={service.featuredImage}
+                            alt={service.title}
+                            class="w-full h-full object-cover"
+                        />
+                    </div>
+                )
+            }
+
+            <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-4">
+                {service.title}
+            </h1>
+            <p class="text-lg text-text-muted mb-8">
+                {service.shortDescription}
+            </p>
+
+            <div class="prose prose-lg max-w-none">
+                <DocumentRenderer document={content} />
+            </div>
+        </div>
+    </article>
+</BaseLayout>

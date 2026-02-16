@@ -1,0 +1,101 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../../keystatic.config";
+import { DocumentRenderer } from "@keystatic/core/renderer";
+
+const { slug } = Astro.params;
+const reader = createReader(process.cwd(), keystaticConfig);
+
+const project = slug ? await reader.collections.projects.read(slug) : null;
+if (!project) {
+    return Astro.redirect("/projeler");
+}
+
+const content = await project.description();
+---
+
+<BaseLayout title={`${project.projectName} — Projeler`}>
+    <article class="py-20 bg-surface">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Breadcrumb -->
+            <nav class="mb-8 text-sm text-text-muted">
+                <a href="/" class="hover:text-primary transition-colors"
+                    >Ana Sayfa</a
+                >
+                <span class="mx-2">›</span>
+                <a href="/projeler" class="hover:text-primary transition-colors"
+                    >Projeler</a
+                >
+                <span class="mx-2">›</span>
+                <span class="text-primary">{project.projectName}</span>
+            </nav>
+
+            {
+                project.coverImage && (
+                    <div class="aspect-video rounded-2xl overflow-hidden mb-8">
+                        <img
+                            src={project.coverImage}
+                            alt={project.projectName}
+                            class="w-full h-full object-cover"
+                        />
+                    </div>
+                )
+            }
+
+            <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-4">
+                {project.projectName}
+            </h1>
+
+            <div class="flex flex-wrap gap-4 mb-8 text-sm text-text-muted">
+                {
+                    project.client && (
+                        <span class="bg-surface-dark px-3 py-1 rounded-full">
+                            Müşteri: {project.client}
+                        </span>
+                    )
+                }
+                {
+                    project.category && (
+                        <span class="bg-surface-dark px-3 py-1 rounded-full">
+                            {project.category}
+                        </span>
+                    )
+                }
+                {
+                    project.date && (
+                        <span class="bg-surface-dark px-3 py-1 rounded-full">
+                            {new Date(project.date).toLocaleDateString("tr-TR")}
+                        </span>
+                    )
+                }
+            </div>
+
+            <div class="prose prose-lg max-w-none mb-12">
+                <DocumentRenderer document={content} />
+            </div>
+
+            <!-- Galeri -->
+            {
+                project.gallery && project.gallery.length > 0 && (
+                    <div>
+                        <h2 class="text-2xl font-bold text-primary mb-6">
+                            Galeri
+                        </h2>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            {project.gallery.map((img: any) => (
+                                <div class="rounded-xl overflow-hidden">
+                                    <img
+                                        src={img}
+                                        alt="Proje görseli"
+                                        class="w-full h-auto"
+                                    />
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                )
+            }
+        </div>
+    </article>
+</BaseLayout>

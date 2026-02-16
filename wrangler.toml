@@ -1,0 +1,23 @@
+name = "netmimar-client-site"
+compatibility_date = "2024-11-01"
+compatibility_flags = ["nodejs_compat"]
+pages_build_output_dir = "./dist"
+
+# Cloudflare D1 Database Binding
+[[d1_databases]]
+binding = "DB"
+database_name = "netmimar-contacts"
+database_id = "YOUR_D1_DATABASE_ID_HERE"
+
+# Cloudflare KV Binding (Astro Sessions için)
+[[kv_namespaces]]
+binding = "SESSION"
+id = "YOUR_KV_NAMESPACE_ID_HERE"
+
+# Environment Variables (Cloudflare Dashboard'dan ayarlanacak):
+# GITHUB_TOKEN    - Agency GitHub Personal Access Token
+# REPO_OWNER      - GitHub repository sahibi (ör: muhone-sudo)
+# REPO_NAME       - GitHub repository adı (ör: netmimar-client)
+# CLIENT_EMAIL    - Müşteri giriş e-postası
+# CLIENT_PASSWORD - Müşteri giriş şifresi
+# COOKIE_SECRET   - Session cookie imzalama anahtarı (min 32 karakter)

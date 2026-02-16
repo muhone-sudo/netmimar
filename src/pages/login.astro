@@ -1,0 +1,102 @@
+---
+import '../styles/global.css';
+---
+<!DOCTYPE html>
+<html lang="tr" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Giriş — NetMimar Yönetim Paneli</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body class="h-full">
+  <div class="min-h-full flex items-center justify-center"
+       style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);">
+    <div class="w-full max-w-md mx-4 animate-fade-in">
+      <!-- Logo / Branding -->
+      <div class="text-center mb-8">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
+             style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+          <svg class="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        </div>
+        <h1 class="text-2xl font-bold text-white">NetMimar</h1>
+        <p class="text-sm mt-1" style="color: #94a3b8;">İçerik Yönetim Paneli</p>
+      </div>
+
+      <!-- Login Card -->
+      <div class="rounded-2xl p-8 shadow-2xl"
+           style="background: rgba(30, 41, 59, 0.8); backdrop-filter: blur(20px); border: 1px solid rgba(148, 163, 184, 0.1);">
+
+        {Astro.url.searchParams.get('error') && (
+          <div class="mb-6 p-3 rounded-lg text-sm text-center"
+               style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); color: #fca5a5;">
+            E-posta veya şifre hatalı. Lütfen tekrar deneyin.
+          </div>
+        )}
+
+        <form method="POST" action="/api/auth/login" class="space-y-5">
+          <!-- Email -->
+          <div>
+            <label for="email" class="block text-sm font-medium mb-2" style="color: #cbd5e1;">
+              E-posta Adresi
+            </label>
+            <input
+              type="email"
+              id="email"
+              name="email"
+              required
+              autocomplete="email"
+              placeholder="ornek@email.com"
+              class="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none transition-all duration-200"
+              style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2);"
+              onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'"
+              onblur="this.style.borderColor='rgba(148,163,184,0.2)'; this.style.boxShadow='none'"
+            />
+          </div>
+
+          <!-- Password -->
+          <div>
+            <label for="password" class="block text-sm font-medium mb-2" style="color: #cbd5e1;">
+              Şifre
+            </label>
+            <input
+              type="password"
+              id="password"
+              name="password"
+              required
+              autocomplete="current-password"
+              placeholder="••••••••"
+              class="w-full px-4 py-3 rounded-xl text-white placeholder-gray-500 outline-none transition-all duration-200"
+              style="background: rgba(15, 23, 42, 0.6); border: 1px solid rgba(148, 163, 184, 0.2);"
+              onfocus="this.style.borderColor='#3b82f6'; this.style.boxShadow='0 0 0 3px rgba(59,130,246,0.1)'"
+              onblur="this.style.borderColor='rgba(148,163,184,0.2)'; this.style.boxShadow='none'"
+            />
+          </div>
+
+          <!-- Submit -->
+          <button
+            type="submit"
+            class="w-full py-3 px-4 rounded-xl font-semibold text-white transition-all duration-200 cursor-pointer"
+            style="background: linear-gradient(135deg, #3b82f6, #2563eb);"
+            onmouseover="this.style.background='linear-gradient(135deg, #2563eb, #1d4ed8)'; this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(59,130,246,0.4)'"
+            onmouseout="this.style.background='linear-gradient(135deg, #3b82f6, #2563eb)'; this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+          >
+            Giriş Yap
+          </button>
+        </form>
+      </div>
+
+      <!-- Footer -->
+      <p class="text-center text-xs mt-6" style="color: #475569;">
+        &copy; {new Date().getFullYear()} NetMimar — Tüm hakları saklıdır.
+      </p>
+    </div>
+  </div>
+</body>
+</html>

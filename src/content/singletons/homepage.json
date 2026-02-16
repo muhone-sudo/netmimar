@@ -1,0 +1,49 @@
+{
+  "heroHeading": "Dijital Dünyada Fark Yaratın",
+  "heroSubheading": "İşletmenizi profesyonel web çözümleri ile büyütün. Tasarımdan geliştirmeye, SEO'dan bakıma kadar yanınızdayız mı?",
+  "heroCtaText": "Hemen Başlayalım",
+  "heroCtaLink": "#iletisim",
+  "features": [
+    {
+      "iconClass": "🎨",
+      "title": "Modern Tasarım",
+      "description": "Markanızı yansıtan, mobil uyumlu ve etkileyici görsel tasarımlar."
+    },
+    {
+      "iconClass": "🔒",
+      "title": "Güvenli Altyapı",
+      "description": "SSL sertifikalı, DDoS korumalı ve güvenli sunucu altyapısı."
+    },
+    {
+      "iconClass": "🚀",
+      "title": "Hızlı & Performanslı",
+      "description": "En son teknolojilerle optimize edilmiş, şimşek hızında web siteleri."
+    }
+  ],
+  "counters": [
+    {
+      "number": "50+",
+      "label": "Mutlu Müşteri"
+    },
+    {
+      "number": "5+",
+      "label": "Yıllık Deneyim"
+    },
+    {
+      "number": "7/24",
+      "label": "Destek"
+    },
+    {
+      "number": "150+",
+      "label": "Tamamlanan Proje"
+    }
+  ],
+  "testimonials": [
+    {
+      "clientName": "Hülagü Kahraman",
+      "clientRole": "Stajyer",
+      "clientPhoto": "/images/testimonials/testimonials/0/clientPhoto.png",
+      "quote": "Bir stajyer olarak sizi tebrik ediyorum. benden daha iyi site yapmışsınız"
+    }
+  ]
+}

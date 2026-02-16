@@ -1,0 +1,95 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../../keystatic.config";
+import { DocumentRenderer } from "@keystatic/core/renderer";
+
+const { slug } = Astro.params;
+const reader = createReader(process.cwd(), keystaticConfig);
+
+const post = slug ? await reader.collections.blog.read(slug) : null;
+if (!post) {
+    return Astro.redirect("/blog");
+}
+
+const content = await post.body();
+---
+
+<BaseLayout title={`${post.title} — Blog`}>
+    <article class="py-20 bg-surface">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <!-- Breadcrumb -->
+            <nav class="mb-8 text-sm text-text-muted">
+                <a href="/" class="hover:text-primary transition-colors"
+                    >Ana Sayfa</a
+                >
+                <span class="mx-2">›</span>
+                <a href="/blog" class="hover:text-primary transition-colors"
+                    >Blog</a
+                >
+                <span class="mx-2">›</span>
+                <span class="text-primary">{post.title}</span>
+            </nav>
+
+            {
+                post.coverImage && (
+                    <div class="aspect-video rounded-2xl overflow-hidden mb-8">
+                        <img
+                            src={post.coverImage}
+                            alt={post.title}
+                            class="w-full h-full object-cover"
+                        />
+                    </div>
+                )
+            }
+
+            <div class="mb-8">
+                {
+                    post.category && (
+                        <span
+                            class="inline-block text-xs font-medium px-3 py-1 rounded-full mb-4"
+                            style="background: rgba(59,130,246,0.1); color: #3b82f6;"
+                        >
+                            {post.category}
+                        </span>
+                    )
+                }
+                <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-4">
+                    {post.title}
+                </h1>
+                <div class="flex items-center gap-4 text-sm text-text-muted">
+                    {
+                        post.date && (
+                            <span>
+                                {new Date(post.date).toLocaleDateString(
+                                    "tr-TR",
+                                    {
+                                        year: "numeric",
+                                        month: "long",
+                                        day: "numeric",
+                                    }
+                                )}
+                            </span>
+                        )
+                    }
+                    {post.author && <span>• {post.author}</span>}
+                </div>
+                {
+                    post.tags && post.tags.length > 0 && (
+                        <div class="flex flex-wrap gap-2 mt-4">
+                            {post.tags.map((tag: string) => (
+                                <span class="text-xs px-3 py-1 rounded-full bg-surface-dark text-text-muted border border-border">
+                                    {tag}
+                                </span>
+                            ))}
+                        </div>
+                    )
+                }
+            </div>
+
+            <div class="prose prose-lg max-w-none">
+                <DocumentRenderer document={content} />
+            </div>
+        </div>
+    </article>
+</BaseLayout>

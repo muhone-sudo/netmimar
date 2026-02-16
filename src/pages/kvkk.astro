@@ -1,0 +1,48 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../keystatic.config";
+import { DocumentRenderer } from "@keystatic/core/renderer";
+
+const reader = createReader(process.cwd(), keystaticConfig);
+const settings = await reader.singletons.settings.read();
+
+let kvkkContent: any = null;
+try {
+    if (settings) {
+        kvkkContent = await settings.kvkkText();
+    }
+} catch (e) {
+    console.warn("KVKK read warning:", e);
+}
+---
+
+<BaseLayout title="KVKK Aydınlatma Metni — NetMimar">
+    <section class="py-20 bg-surface">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <nav class="mb-8 text-sm text-text-muted">
+                <a href="/" class="hover:text-primary transition-colors"
+                    >Ana Sayfa</a
+                >
+                <span class="mx-2">›</span>
+                <span class="text-primary">KVKK Aydınlatma Metni</span>
+            </nav>
+
+            <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-8">
+                KVKK Aydınlatma Metni
+            </h1>
+
+            <div class="prose prose-lg max-w-none">
+                {
+                    kvkkContent ? (
+                        <DocumentRenderer document={kvkkContent} />
+                    ) : (
+                        <p class="text-text-muted">
+                            KVKK aydınlatma metni henüz eklenmemiş.
+                        </p>
+                    )
+                }
+            </div>
+        </div>
+    </section>
+</BaseLayout>

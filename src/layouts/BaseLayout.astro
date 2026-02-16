@@ -1,0 +1,445 @@
+---
+import "../styles/global.css";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../keystatic.config";
+
+interface Props {
+  title?: string;
+  description?: string;
+  keywords?: string;
+}
+
+// CMS'den site ayarlarını oku
+let settings: any = null;
+try {
+  const reader = createReader(process.cwd(), keystaticConfig);
+  settings = await reader.singletons.settings.read();
+} catch (e) {
+  console.warn("Settings read warning:", e);
+}
+
+// Varsayılan değerler
+const siteTitle = settings?.siteTitle || "NetMimar";
+const slogan = settings?.slogan || "Profesyonel Web Çözümleri";
+const siteLogo = settings?.siteLogo || null;
+const favicon = settings?.favicon || "/favicon.svg";
+const phone = settings?.phone || "";
+const whatsapp = settings?.whatsapp || "";
+const email = settings?.email || "";
+const address = settings?.address || "";
+const metaDesc = settings?.metaDescription || "";
+const metaKeywords = settings?.metaKeywords || "";
+const headerScripts = settings?.headerScripts || "";
+const footerScripts = settings?.footerScripts || "";
+
+// Sosyal medya
+const socialFacebook = settings?.socialFacebook || "";
+const socialInstagram = settings?.socialInstagram || "";
+const socialTwitter = settings?.socialTwitter || "";
+const socialLinkedin = settings?.socialLinkedin || "";
+const socialYoutube = settings?.socialYoutube || "";
+
+// Props ile override
+const {
+  title = `${siteTitle} — ${slogan}`,
+  description = metaDesc,
+  keywords = metaKeywords,
+} = Astro.props;
+---
+
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    {keywords && <meta name="keywords" content={keywords} />}
+    <meta name="generator" content={Astro.generator} />
+    <link rel="icon" href={favicon} />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>{title}</title>
+  </head>{headerScripts && <Fragment set:html={headerScripts} />}
+
+
+  <!-- Header -->
+  <header
+    class="sticky top-0 z-50 border-b border-border"
+    style="background: rgba(255,255,255,0.85); backdrop-filter: blur(12px);"
+  >
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <!-- Logo -->
+        <a
+          href="/"
+          class="flex items-center gap-2 font-bold text-xl text-primary"
+        >
+          {
+            siteLogo ? (
+              <img src={siteLogo} alt={siteTitle} class="h-8 w-auto" />
+            ) : (
+              <div
+                class="w-8 h-8 rounded-lg flex items-center justify-center"
+                style="background: linear-gradient(135deg, #3b82f6, #60a5fa);"
+              >
+                <svg
+                  class="w-5 h-5 text-white"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                  />
+                </svg>
+              </div>
+            )
+          }
+          <span>{siteTitle}</span>
+        </a>
+
+        <!-- Navigation -->
+        <nav class="hidden md:flex items-center gap-8">
+          <a
+            href="/"
+            class="text-sm font-medium text-text-muted hover:text-primary transition-colors"
+            >Ana Sayfa</a
+          >
+          <a
+            href="/hizmetler"
+            class="text-sm font-medium text-text-muted hover:text-primary transition-colors"
+            >Hizmetler</a
+          >
+          <a
+            href="/projeler"
+            class="text-sm font-medium text-text-muted hover:text-primary transition-colors"
+            >Projeler</a
+          >
+          <a
+            href="/blog"
+            class="text-sm font-medium text-text-muted hover:text-primary transition-colors"
+            >Blog</a
+          >
+          <a
+            href="/ekip"
+            class="text-sm font-medium text-text-muted hover:text-primary transition-colors"
+            >Ekip</a
+          >
+          <a
+            href="/#iletisim"
+            class="text-sm font-medium text-text-muted hover:text-primary transition-colors"
+            >İletişim</a
+          >
+        </nav>
+
+        <!-- Mobile Menu Button -->
+        <button
+          id="mobileMenuBtn"
+          class="md:hidden p-2 rounded-lg text-text-muted hover:text-primary hover:bg-surface-dark transition-colors"
+          aria-label="Menü"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"></path>
+          </svg>
+        </button>
+
+        <!-- CTA -->
+        <a
+          href="/#iletisim"
+          class="hidden md:inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white transition-all duration-200"
+          style="background: linear-gradient(135deg, #3b82f6, #2563eb);"
+          onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(59,130,246,0.4)'"
+          onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='none'"
+        >
+          Teklif Al
+        </a>
+      </div>
+    </div>
+
+    <!-- Mobile Menu -->
+    <div
+      id="mobileMenu"
+      class="hidden md:hidden border-t border-border"
+      style="background: rgba(255,255,255,0.95); backdrop-filter: blur(12px);"
+    >
+      <nav class="px-4 py-4 space-y-2">
+        <a
+          href="/"
+          class="block px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-primary hover:bg-surface-dark transition-colors"
+          >Ana Sayfa</a
+        >
+        <a
+          href="/hizmetler"
+          class="block px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-primary hover:bg-surface-dark transition-colors"
+          >Hizmetler</a
+        >
+        <a
+          href="/projeler"
+          class="block px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-primary hover:bg-surface-dark transition-colors"
+          >Projeler</a
+        >
+        <a
+          href="/blog"
+          class="block px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-primary hover:bg-surface-dark transition-colors"
+          >Blog</a
+        >
+        <a
+          href="/ekip"
+          class="block px-3 py-2 rounded-lg text-sm font-medium text-text-muted hover:text-primary hover:bg-surface-dark transition-colors"
+          >Ekip</a
+        >
+        <a
+          href="/#iletisim"
+          class="block px-3 py-2 rounded-lg text-sm font-medium text-white text-center mt-2"
+          style="background: linear-gradient(135deg, #3b82f6, #2563eb);"
+          >İletişim</a
+        >
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Content -->
+  <main class="flex-1">
+    <slot />
+  </main>
+
+  <!-- Footer -->
+  <footer class="bg-primary text-white">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+        <!-- Brand -->
+        <div>
+          <div class="flex items-center gap-2 font-bold text-xl mb-4">
+            {
+              siteLogo ? (
+                <img
+                  src={siteLogo}
+                  alt={siteTitle}
+                  class="h-8 w-auto brightness-0 invert"
+                />
+              ) : (
+                <div
+                  class="w-8 h-8 rounded-lg flex items-center justify-center"
+                  style="background: linear-gradient(135deg, #3b82f6, #60a5fa);"
+                >
+                  <svg
+                    class="w-5 h-5 text-white"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                    />
+                  </svg>
+                </div>
+              )
+            }
+            <span>{siteTitle}</span>
+          </div>
+          <p class="text-sm" style="color: #94a3b8;">
+            {slogan}
+          </p>
+        </div>
+
+        <!-- Quick Links -->
+        <div>
+          <h3 class="font-semibold mb-4">Hızlı Bağlantılar</h3>
+          <ul class="space-y-2 text-sm" style="color: #94a3b8;">
+            <li>
+              <a href="/" class="hover:text-white transition-colors"
+                >Ana Sayfa</a
+              >
+            </li>
+            <li>
+              <a href="/hizmetler" class="hover:text-white transition-colors"
+                >Hizmetler</a
+              >
+            </li>
+            <li>
+              <a href="/projeler" class="hover:text-white transition-colors"
+                >Projeler</a
+              >
+            </li>
+            <li>
+              <a href="/blog" class="hover:text-white transition-colors">Blog</a
+              >
+            </li>
+            <li>
+              <a href="/ekip" class="hover:text-white transition-colors">Ekip</a
+              >
+            </li>
+          </ul>
+        </div>
+
+        <!-- Contact -->
+        <div>
+          <h3 class="font-semibold mb-4">İletişim</h3>
+          <ul class="space-y-2 text-sm" style="color: #94a3b8;">
+            {
+              phone && (
+                <li>
+                  <a
+                    href={`tel:${phone.replace(/\s/g, "")}`}
+                    class="hover:text-white transition-colors"
+                  >
+                    📞 {phone}
+                  </a>
+                </li>
+              )
+            }
+            {
+              whatsapp && (
+                <li>
+                  <a
+                    href={`https://wa.me/${whatsapp.replace(/\+/g, "")}`}
+                    target="_blank"
+                    class="hover:text-white transition-colors"
+                  >
+                    💬 WhatsApp
+                  </a>
+                </li>
+              )
+            }
+            {
+              email && (
+                <li>
+                  <a
+                    href={`mailto:${email}`}
+                    class="hover:text-white transition-colors"
+                  >
+                    ✉️ {email}
+                  </a>
+                </li>
+              )
+            }
+            {address && <li>📍 {address}</li>}
+          </ul>
+        </div>
+
+        <!-- Legal & Social -->
+        <div>
+          <h3 class="font-semibold mb-4">Yasal</h3>
+          <ul class="space-y-2 text-sm" style="color: #94a3b8;">
+            <li>
+              <a href="/kvkk" class="hover:text-white transition-colors"
+                >KVKK Aydınlatma Metni</a
+              >
+            </li>
+            <li>
+              <a href="/gizlilik" class="hover:text-white transition-colors"
+                >Gizlilik Politikası</a
+              >
+            </li>
+          </ul>
+
+          {
+            (socialFacebook ||
+              socialInstagram ||
+              socialTwitter ||
+              socialLinkedin ||
+              socialYoutube) && (
+              <div class="mt-4">
+                <h3 class="font-semibold mb-3">Sosyal Medya</h3>
+                <div class="flex gap-3">
+                  {socialFacebook && (
+                    <a
+                      href={socialFacebook}
+                      target="_blank"
+                      class="hover:text-accent transition-colors"
+                      style="color: #94a3b8;"
+                      aria-label="Facebook"
+                    >
+                      FB
+                    </a>
+                  )}
+                  {socialInstagram && (
+                    <a
+                      href={socialInstagram}
+                      target="_blank"
+                      class="hover:text-accent transition-colors"
+                      style="color: #94a3b8;"
+                      aria-label="Instagram"
+                    >
+                      IG
+                    </a>
+                  )}
+                  {socialTwitter && (
+                    <a
+                      href={socialTwitter}
+                      target="_blank"
+                      class="hover:text-accent transition-colors"
+                      style="color: #94a3b8;"
+                      aria-label="Twitter"
+                    >
+                      X
+                    </a>
+                  )}
+                  {socialLinkedin && (
+                    <a
+                      href={socialLinkedin}
+                      target="_blank"
+                      class="hover:text-accent transition-colors"
+                      style="color: #94a3b8;"
+                      aria-label="LinkedIn"
+                    >
+                      LI
+                    </a>
+                  )}
+                  {socialYoutube && (
+                    <a
+                      href={socialYoutube}
+                      target="_blank"
+                      class="hover:text-accent transition-colors"
+                      style="color: #94a3b8;"
+                      aria-label="YouTube"
+                    >
+                      YT
+                    </a>
+                  )}
+                </div>
+              </div>
+            )
+          }
+        </div>
+      </div>
+
+      <div
+        class="border-t mt-8 pt-8 text-center text-sm"
+        style="border-color: rgba(148,163,184,0.2); color: #64748b;"
+      >
+        &copy; {new Date().getFullYear()}
+        {siteTitle} — Tüm hakları saklıdır.
+      </div>
+    </div>
+  </footer>
+
+  {footerScripts && <Fragment set:html={footerScripts} />}
+
+  <script>
+    const btn = document.getElementById("mobileMenuBtn");
+    const menu = document.getElementById("mobileMenu");
+    btn?.addEventListener("click", () => {
+      menu?.classList.toggle("hidden");
+    });
+  </script>
+</html>

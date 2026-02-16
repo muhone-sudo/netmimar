@@ -1,0 +1,76 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { createReader } from "@keystatic/core/reader";
+import keystaticConfig from "../../../keystatic.config";
+
+const reader = createReader(process.cwd(), keystaticConfig);
+const projectsRaw = await reader.collections.projects.all();
+const projects = projectsRaw.map((p) => ({ slug: p.slug, ...p.entry }));
+---
+
+<BaseLayout title="Projelerimiz — NetMimar">
+    <section class="py-20 bg-surface">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="text-center mb-16">
+                <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-4">
+                    Projelerimiz
+                </h1>
+                <p class="text-text-muted max-w-2xl mx-auto">
+                    Tamamladığımız projelere göz atın.
+                </p>
+            </div>
+
+            {
+                projects.length > 0 ? (
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+                        {projects.map((project: any) => (
+                            <a
+                                href={`/projeler/${project.slug}`}
+                                class="group bg-surface rounded-2xl border border-border overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
+                            >
+                                {project.coverImage && (
+                                    <div class="aspect-video overflow-hidden">
+                                        <img
+                                            src={project.coverImage}
+                                            alt={project.projectName}
+                                            class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                                        />
+                                    </div>
+                                )}
+                                <div class="p-6">
+                                    <h2 class="text-lg font-semibold text-primary mb-1 group-hover:text-accent transition-colors">
+                                        {project.projectName}
+                                    </h2>
+                                    {project.category && (
+                                        <span
+                                            class="inline-block text-xs font-medium px-2 py-0.5 rounded-full mb-2"
+                                            style="background: rgba(59,130,246,0.1); color: #3b82f6;"
+                                        >
+                                            {project.category}
+                                        </span>
+                                    )}
+                                    {project.client && (
+                                        <p class="text-text-muted text-sm">
+                                            Müşteri: {project.client}
+                                        </p>
+                                    )}
+                                    {project.date && (
+                                        <p class="text-text-muted text-xs mt-1">
+                                            {new Date(
+                                                project.date
+                                            ).toLocaleDateString("tr-TR")}
+                                        </p>
+                                    )}
+                                </div>
+                            </a>
+                        ))}
+                    </div>
+                ) : (
+                    <p class="text-center text-text-muted">
+                        Henüz proje eklenmemiş.
+                    </p>
+                )
+            }
+        </div>
+    </section>
+</BaseLayout>
