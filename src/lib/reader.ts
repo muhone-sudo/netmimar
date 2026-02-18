@@ -5,18 +5,23 @@ import keystaticConfig from '../../keystatic.config';
 /**
  * Cloudflare Workers fetch patch
  * 
- * Keystatic'in GitHub reader'ı fetch({ cache: 'no-store' }) kullanıyor.
- * Cloudflare Workers 'cache' alanını desteklemiyor ve hata fırlatıyor:
- * "The 'cache' field on 'RequestInitializerDict' is not implemented."
+ * Keystatic'in GitHub reader'ı:
+ * 1) fetch({ cache: 'no-store' }) kullanıyor — CF Workers bunu desteklemiyor
+ * 2) User-Agent header'ı eklemiyor — GitHub API 403 döndürüyor
  * 
- * Bu patch global fetch'i sarmalayarak 'cache' alanını otomatik siler.
+ * Bu patch global fetch'i sarmalayarak her iki sorunu da çözer.
  */
 if (!import.meta.env.DEV) {
     const _originalFetch = globalThis.fetch;
     globalThis.fetch = function patchedFetch(input: any, init?: any) {
         if (init) {
             const { cache: _cache, ...rest } = init;
-            return _originalFetch(input, rest);
+            // GitHub API isteklerinde User-Agent zorunlu
+            const headers = new Headers(rest.headers || {});
+            if (!headers.has('User-Agent')) {
+                headers.set('User-Agent', 'netmimar-keystatic');
+            }
+            return _originalFetch(input, { ...rest, headers });
         }
         return _originalFetch(input);
     };
