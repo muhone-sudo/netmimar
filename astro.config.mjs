@@ -6,6 +6,30 @@ import react from '@astrojs/react';
 import cloudflare from '@astrojs/cloudflare';
 import keystatic from '@keystatic/astro';
 
+/**
+ * Keystatic entegrasyonunu sarmalayan wrapper.
+ * Keystatic otomatik olarak /api/keystatic/[...params] route'u enjekte eder,
+ * ama biz bu route'u zaten custom proxy ile handle ediyoruz (GITHUB_TOKEN enjeksiyonu için).
+ * Bu wrapper, API route enjeksiyonunu atlayarak çakışmayı (route collision) önler.
+ */
+function keystaticNoApiRoute() {
+  const original = keystatic();
+  return {
+    ...original,
+    hooks: {
+      'astro:config:setup': (options) => {
+        const originalInjectRoute = options.injectRoute;
+        options.injectRoute = (route) => {
+          // API route'unu atla — biz bunu src/pages/api/keystatic/[...params].ts ile yönetiyoruz
+          if (route.pattern === '/api/keystatic/[...params]') return;
+          originalInjectRoute(route);
+        };
+        original.hooks['astro:config:setup'](options);
+      },
+    },
+  };
+}
+
 // https://astro.build/config
 export default defineConfig({
   output: 'server',
@@ -16,18 +40,17 @@ export default defineConfig({
     },
   }),
 
-  // Cloudflare adapter otomatik KV session eklemesin diye driver belirtiyoruz.
-  // Projede session kullanılmıyor (auth cookie/HMAC ile yapılıyor).
-  session: {
-    driver: 'fs-lite',
-  },
-
   integrations: [
     react(),
-    keystatic(),
+    keystaticNoApiRoute(),
   ],
 
   vite: {
     plugins: [tailwindcss()],
+    resolve: {
+      alias: {
+        'react-dom/server': 'react-dom/server.edge',
+      },
+    },
   },
 });
