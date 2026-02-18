@@ -20,7 +20,7 @@ Bu proje bir **white-label ajans web sitesi iskeleti**dir. Amaç:
 
 | Teknoloji | Versiyon | Kullanım Amacı |
 |-----------|----------|----------------|
-| **Astro** | ^5.17 | Ana framework. SSR modunda çalışır (`output: 'server'`). Sayfalar sunucu tarafında render edilir. |
+| **Astro** | ^5.17 | Ana framework. Hibrit mod (`output: 'server'`). İçerik sayfaları statik (prerender), admin paneli ve API'ler SSR. |
 | **Keystatic** | ^0.5.48 | Git-tabanlı headless CMS. İçerikler dosya sistemi üzerinde saklanır (JSON + MDOC). |
 | **@keystatic/astro** | ^5.0.6 | Keystatic'in Astro entegrasyonu. Admin paneli UI'ını otomatik mount eder. |
 | **React** | ^19 | Yalnızca Keystatic admin paneli için gerekli. Frontend sayfalarında React kullanılmaz. |
@@ -31,8 +31,8 @@ Bu proje bir **white-label ajans web sitesi iskeleti**dir. Amaç:
 
 ### Neden Bu Teknolojiler?
 
-- **Astro SSR:** Statik site üretmek yerine sunucu tarafında render yapılır çünkü Keystatic admin paneli server gerektirir ve CMS verileri sunucu tarafında okunmalıdır.
-- **Keystatic:** Veritabanı gerektirmez, içerik Git repo'suna commit olur. Müşteri panelden düzenleme yapar → Keystatic bu değişiklikleri GitHub'a commit eder.
+- **Astro Hibrit Mod:** `output: 'server'` ama çoğu sayfa `prerender = true` ile build-time statik HTML olarak üretilir. Sadece admin paneli (Keystatic UI) ve API endpoint'leri runtime'da SSR olarak çalışır.
+- **Keystatic:** Veritabanı gerektirmez, içerik Git repo'suna commit olur. Müşteri panelden düzenleme yapar → Keystatic bu değişiklikleri GitHub'a commit eder → Cloudflare Pages otomatik yeni build alır → Site güncellenir.
 - **Cloudflare:** Sıfır maliyet (free plan), global CDN, D1 veritabanı ve Workers runtime.
 
 ---
@@ -66,7 +66,9 @@ admin-base-site-structure/
 └── src/
     ├── env.d.ts               # TypeScript type tanımları (CloudflareEnv)
     ├── content.config.ts      # Astro Content Collections şeması
-    ├── middleware.ts           # Auth middleware — /keystatic yollarını korur
+    ├── middleware.ts           # Fetch patch + Auth middleware — /keystatic yollarını korur
+    ├── lib/
+    │   └── reader.ts          # getReader() helper — CMS verilerini okuyan fonksiyon
     ├── styles/
     │   └── global.css         # TailwindCSS v4 design system token'ları
     │
@@ -234,33 +236,61 @@ Collection = Birden fazla kayıt oluşturulabilen yapı. Her kayıt bir dosyadı
 
 ---
 
-## 5. Frontend-Backend Bağlantısı (Veri Akışı)
+## 5. Site Mimarisi — Statik Prerender + SSR Hibrit Modeli
 
-### CMS → Frontend akışı şöyle çalışır:
+### Temel Mimari Prensibi
+
+Bu site **JAMstack mimarisi** kullanır. İçerik sayfaları (ana sayfa, blog, hizmetler vb.) **build sırasında** statik HTML olarak üretilir. Ziyaretçi siteye girdiğinde **hazır HTML** servis edilir — hiçbir API çağrısı, veritabanı sorgusu veya sunucu işlemi olmaz.
+
+**Sadece** admin paneli (`/keystatic`) ve API endpoint'leri (`/api/*`) runtime'da SSR olarak çalışır.
+
+### Veri Akışı — Büyük Resim
 
 ```
-[Admin Paneli] → [Keystatic] → [Dosya Sistemi (src/content/)] → [Astro Sayfası (createReader)] → [HTML]
+┌────────────────┐    ┌──────────┐    ┌─────────────────┐    ┌──────────────────┐
+│ Admin Paneli   │───→│ GitHub   │───→│ Cloudflare Pages │───→│ Statik HTML      │
+│ (/keystatic)   │    │ Push     │    │ Auto Build       │    │ CDN'den servis   │
+│ İçerik düzenle │    │ (commit) │    │ (1-2 dk)         │    │ (anında yüklenir)│
+└────────────────┘    └──────────┘    └─────────────────┘    └──────────────────┘
 ```
 
 ### Adım adım:
 
-1. **Müşteri** admin paneline giriş yapar (`/login`)
-2. **Keystatic** admin paneli açılır (`/keystatic`)
-3. Müşteri bir içerik düzenler (ör: hizmet başlığını değiştirir)
-4. Keystatic bu değişikliği **dosya sistemi**ne yazar (local modda) veya **GitHub'a commit** eder (production modda)
-5. İlgili dosya güncellenir (ör: `src/content/services/tasarim-hizmeti.mdoc`)
-6. Kullanıcı siteye girdiğinde, Astro sayfası `createReader` ile bu dosyayı okur
-7. Okunan veri HTML olarak render edilir
+1. **Müşteri** admin paneline giriş yapar (`/login` → `/keystatic`)
+2. Müşteri bir içerik düzenler (ör: yeni bir blog yazısı ekler)
+3. "Save" butonuna basar → Keystatic bu değişikliği **GitHub'a commit** eder
+4. GitHub'a push geldiğinde **Cloudflare Pages otomatik build tetikler** (webhook)
+5. Build sırasında `createReader` içerikleri **lokal dosya sisteminden** okur (repo klonlanmış halde)
+6. Tüm sayfalar **statik HTML** olarak üretilir (`prerender = true`)
+7. Build tamamlanır → Yeni HTML dosyaları Cloudflare CDN'e deploy edilir
+8. Ziyaretçi siteye girdiğinde **hazır HTML** servis edilir — GitHub API'ye bağlanılmaz
 
-### `createReader` Kullanımı
+### Prerender vs SSR Ayrımı
 
-Her Astro sayfasının `---` (frontmatter) bölümünde şu kalıp kullanılır:
+| Sayfa | Mod | Ne Zaman Çalışır |
+|-------|-----|-------------------|
+| `/` (ana sayfa) | **Prerender** (statik) | Build sırasında |
+| `/hizmetler`, `/hizmetler/[slug]` | **Prerender** (statik) | Build sırasında |
+| `/projeler`, `/projeler/[slug]` | **Prerender** (statik) | Build sırasında |
+| `/blog`, `/blog/[slug]` | **Prerender** (statik) | Build sırasında |
+| `/ekip` | **Prerender** (statik) | Build sırasında |
+| `/kvkk`, `/gizlilik` | **Prerender** (statik) | Build sırasında |
+| `/login` | **Prerender** (statik) | Build sırasında |
+| `/keystatic/*` | **SSR** (runtime) | Her ziyarette |
+| `/api/*` | **SSR** (runtime) | Her istekte |
+
+> **Prerendered sayfalar** `export const prerender = true;` ile işaretlidir. Astro, build sırasında bu sayfaları çalıştırır ve çıktıyı statik HTML olarak kaydeder.
+>
+> **[slug] sayfalarında** ek olarak `getStaticPaths()` fonksiyonu tanımlıdır. Bu, build sırasında mevcut tüm slug'ları keşfeder ve her biri için ayrı bir HTML dosyası üretir.
+
+### `getReader()` Kullanımı
+
+İçerik okumak için `src/lib/reader.ts` içindeki `getReader()` helper'ı kullanılır:
 
 ```typescript
-import { createReader } from '@keystatic/core/reader';
-import keystaticConfig from '../../keystatic.config';
+import { getReader } from "../lib/reader"; // veya "../../lib/reader" (derinliğe göre)
 
-const reader = createReader(process.cwd(), keystaticConfig);
+const reader = getReader();
 
 // Singleton okuma
 const settings = await reader.singletons.settings.read();
@@ -275,6 +305,8 @@ const service = await reader.collections.services.read('tasarim-hizmeti');
 // Zengin metin (document) alanını render için alma
 const content = await service.content(); // → DocumentRenderer'a verilir
 ```
+
+> **Not:** `getReader()` hiçbir parametre almaz. Build sırasında çalışır ve lokal dosya sisteminden okur.
 
 ### `DocumentRenderer` Kullanımı
 
@@ -293,33 +325,87 @@ const content = await post.body(); // veya service.content(), project.descriptio
 
 > **Dikkat:** `content()`, `body()`, `description()` gibi metotlar **async**'tir ve `await` gerektirir. Bunlar `keystatic.config.ts`'de `fields.document()` olarak tanımlanan alanlardan gelir.
 
+### Bir Sayfa Nasıl Yapılandırılır? (Kalıp)
+
+**Liste sayfası (ör: hizmetler/index.astro):**
+
+```astro
+---
+export const prerender = true;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getReader } from "../../lib/reader";
+
+const reader = getReader();
+const servicesRaw = await reader.collections.services.all();
+const services = servicesRaw.map((s) => ({ slug: s.slug, ...s.entry }));
+---
+
+<BaseLayout title="Hizmetlerimiz">
+  <!-- Burada services array'ini kullanarak HTML yazarsın -->
+</BaseLayout>
+```
+
+**Detay sayfası (ör: hizmetler/[slug].astro):**
+
+```astro
+---
+export const prerender = true;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getReader } from "../../lib/reader";
+import { DocumentRenderer } from "@keystatic/core/renderer";
+
+export async function getStaticPaths() {
+    const reader = getReader();
+    const services = await reader.collections.services.all();
+    return services.map((s) => ({ params: { slug: s.slug } }));
+}
+
+const { slug } = Astro.params;
+const reader = getReader();
+const service = await reader.collections.services.read(slug!);
+if (!service) return Astro.redirect("/hizmetler");
+const content = await service.content();
+---
+
+<BaseLayout title={service.title}>
+  <DocumentRenderer document={content} />
+</BaseLayout>
+```
+
+> **Kritik kural:** Tüm içerik sayfalarında `export const prerender = true;` satırı frontmatter'ın **en üstünde** olmalıdır. Bu satır olmadan sayfa SSR modunda çalışır ve her ziyarette sunucu tarafında işlenir — ki bu gereksiz ve yavaştır.
+
 ---
 
 ## 6. Sayfa Haritası
 
-| URL | Dosya | Çektiği CMS Verisi | Açıklama |
-|-----|-------|---------------------|----------|
-| `/` | `pages/index.astro` | settings, homepage, services (all), projects (all), blog (top 3), team (all) | Ana sayfa — tüm bölümler |
-| `/hizmetler` | `pages/hizmetler/index.astro` | services (all) | Hizmet listesi |
-| `/hizmetler/[slug]` | `pages/hizmetler/[slug].astro` | services (tekil, slug ile) | Hizmet detay + DocumentRenderer |
-| `/projeler` | `pages/projeler/index.astro` | projects (all) | Proje listesi |
-| `/projeler/[slug]` | `pages/projeler/[slug].astro` | projects (tekil) | Proje detay + galeri + DocumentRenderer |
-| `/blog` | `pages/blog/index.astro` | blog (all, tarihe göre sıralı) | Blog listesi |
-| `/blog/[slug]` | `pages/blog/[slug].astro` | blog (tekil) | Blog yazısı + DocumentRenderer |
-| `/ekip` | `pages/ekip.astro` | team (all, order'a göre sıralı) | Ekip listesi |
-| `/kvkk` | `pages/kvkk.astro` | settings (kvkkText document) | KVKK aydınlatma metni |
-| `/gizlilik` | `pages/gizlilik.astro` | settings (privacyPolicy document) | Gizlilik politikası |
-| `/login` | `pages/login.astro` | — | Giriş formu (noindex) |
-| `/keystatic` | Keystatic UI (otomatik) | — | Admin paneli (korumalı) |
+| URL | Dosya | Mod | Çektiği CMS Verisi | Açıklama |
+|-----|-------|-----|---------------------|----------|
+| `/` | `pages/index.astro` | **Prerender** | settings, homepage, services, projects, blog (top 3), team | Ana sayfa — tüm bölümler |
+| `/hizmetler` | `pages/hizmetler/index.astro` | **Prerender** | services (all) | Hizmet listesi |
+| `/hizmetler/[slug]` | `pages/hizmetler/[slug].astro` | **Prerender** + `getStaticPaths` | services (tekil, slug ile) | Hizmet detay + DocumentRenderer |
+| `/projeler` | `pages/projeler/index.astro` | **Prerender** | projects (all) | Proje listesi |
+| `/projeler/[slug]` | `pages/projeler/[slug].astro` | **Prerender** + `getStaticPaths` | projects (tekil) | Proje detay + galeri + DocumentRenderer |
+| `/blog` | `pages/blog/index.astro` | **Prerender** | blog (all, tarihe göre sıralı) | Blog listesi |
+| `/blog/[slug]` | `pages/blog/[slug].astro` | **Prerender** + `getStaticPaths` | blog (tekil) | Blog yazısı + DocumentRenderer |
+| `/ekip` | `pages/ekip.astro` | **Prerender** | team (all, order'a göre sıralı) | Ekip listesi |
+| `/kvkk` | `pages/kvkk.astro` | **Prerender** | settings (kvkkText document) | KVKK aydınlatma metni |
+| `/gizlilik` | `pages/gizlilik.astro` | **Prerender** | settings (privacyPolicy document) | Gizlilik politikası |
+| `/login` | `pages/login.astro` | **Prerender** | — | Giriş formu (noindex) |
+| `/keystatic` | Keystatic UI (otomatik) | **SSR** | — | Admin paneli (korumalı, runtime) |
 
-### API Endpoint'leri
+> **Prerender** = Build sırasında statik HTML üretilir, CDN'den servis edilir, süper hızlı.
+> **SSR** = Her istekte Cloudflare Workers runtime'da çalışır.
+
+### API Endpoint'leri (hepsi SSR — runtime)
 
 | URL | Metot | Dosya | İşlev |
 |-----|-------|-------|-------|
-| `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, HMAC cookie oluşturma |
-| `/api/auth/logout` | GET/POST | `pages/api/auth/logout.ts` | Cookie silme, `/login`'e yönlendirme |
+| `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, 2 cookie set etme, `/keystatic`'e yönlendirme |
+| `/api/auth/logout` | GET/POST | `pages/api/auth/logout.ts` | 2 cookie silme, `/login`'e yönlendirme |
 | `/api/contact` | POST | `pages/api/contact.ts` | İletişim formu → D1 veritabanına kayıt |
-| `/api/keystatic/[...params]` | ALL | `pages/api/keystatic/[...params].ts` | GitHub API proxy (GITHUB_TOKEN enjeksiyonu) |
+| `/api/keystatic/[...params]` | ALL | `pages/api/keystatic/[...params].ts` | GitHub API proxy + internal auth route handler |
 
 ---
 
@@ -328,11 +414,12 @@ const content = await post.body(); // veya service.content(), project.descriptio
 ### Genel Akış
 
 ```
-┌─────────┐    ┌──────────────┐    ┌────────────────────┐    ┌──────────────┐
-│ /login  │───→│ POST         │───→│ Credential         │───→│ HMAC Cookie  │
-│ Formu   │    │ /api/auth/   │    │ Doğrulama          │    │ Set + Redirect│
-│         │    │ login        │    │ (env vars ile)     │    │ → /keystatic │
-└─────────┘    └──────────────┘    └────────────────────┘    └──────────────┘
+┌─────────┐    ┌──────────────┐    ┌────────────────────┐    ┌───────────────────────┐
+│ /login  │───→│ POST         │───→│ Credential         │───→│ 2 Cookie Set:         │
+│ Formu   │    │ /api/auth/   │    │ Doğrulama          │    │ 1. netmimar_session   │
+│         │    │ login        │    │ (env vars ile)     │    │ 2. keystatic-gh-...   │
+└─────────┘    └──────────────┘    └────────────────────┘    │ + Redirect /keystatic │
+                                                             └───────────────────────┘
 
 ┌────────────────┐    ┌────────────────┐    ┌─────────────────────┐
 │ /keystatic     │───→│ middleware.ts   │───→│ Cookie HMAC doğrula │
@@ -341,9 +428,11 @@ const content = await post.body(); // veya service.content(), project.descriptio
 └────────────────┘    └────────────────┘    └─────────────────────┘
 ```
 
-### Cookie Yapısı
+### Cookie Yapısı — İki Ayrı Cookie
 
-Cookie adı: `netmimar_session`
+Login başarılı olduğunda **iki cookie** set edilir:
+
+#### 1. `netmimar_session` — Auth Cookie
 
 ```
 base64(JSON.stringify({ email, iat, exp })).HMAC_SHA256_SIGNATURE
@@ -353,6 +442,20 @@ base64(JSON.stringify({ email, iat, exp })).HMAC_SHA256_SIGNATURE
 - `exp` = sona erme zamanı (24 saat sonra)
 - İmza `COOKIE_SECRET` ile `HMAC-SHA256` kullanılarak üretilir
 - İmza URL-safe Base64 formatındadır (`+` → `-`, `/` → `_`, trailing `=` kaldırılır)
+- **httpOnly: true** — JavaScript erişemez, güvenli
+- **Amacı:** Middleware, bu cookie'yi kontrol ederek `/keystatic` ve `/api/keystatic` erişimini doğrular
+
+#### 2. `keystatic-gh-access-token` — GitHub Token Cookie
+
+```
+Değer: GITHUB_TOKEN (ortam değişkeninden)
+```
+
+- **httpOnly: false** — Keystatic'in JavaScript frontend'i bu token'a erişmeli
+- **Amacı:** Keystatic admin panelinin GitHub API ile iletişim kurması için gerekli. Keystatic, bu cookie'yi okuyarak GitHub'a erişim sağlar.
+- **Neden httpOnly: false?** Keystatic'in client-side JS kodu bu token'ı alıp GitHub API çağrılarında kullanır. httpOnly: true yapılırsa Keystatic çalışmaz.
+
+> **Güvenlik notu:** `keystatic-gh-access-token` sadece login başarılı olduğunda set edilir ve 24 saat sonra expire olur. Token görmek için önce geçerli kimlik bilgileriyle giriş yapmak gerekir.
 
 ### Korunan Yollar
 
@@ -362,16 +465,39 @@ base64(JSON.stringify({ email, iat, exp })).HMAC_SHA256_SIGNATURE
 
 Diğer tüm yollar (ana sayfa, blog, hizmetler vb.) herkese açıktır.
 
-### GitHub Proxy (/api/keystatic/[...params])
+### GitHub API Proxy (/api/keystatic/[...params])
 
-Production'da Keystatic, GitHub API üzerinden içerik okur/yazar. Bu proxy:
+Bu dosya Keystatic admin panelinin GitHub ile iletişimini sağlar. İki ayrı görevi vardır:
+
+#### A. Internal Auth Routes (Keystatic'in OAuth akışını override eder)
+
+Keystatic normalde GitHub OAuth akışı kullanır. Ancak biz kendi auth sistemimizi kullandığımız için bu route'ları kendimiz handle ediyoruz:
+
+| Path | Ne Yapar |
+|------|----------|
+| `github/login` | `keystatic-gh-access-token` cookie'sini kontrol eder, varsa JSON olarak döner |
+| `github/refresh-token` | Token'ı cookie'den okuyup döner (token yenileme simülasyonu) |
+| `github/logout` | Cookie'yi siler (ama auth session devam eder) |
+| `github/repo-not-found` | Hata sayfası döner |
+
+#### B. GitHub API Proxy (Asıl veri trafiği)
+
+Internal route'lar dışındaki tüm istekler GitHub API'ye proxy'lenir:
 
 1. Gelen isteği alır
 2. `Authorization: Bearer GITHUB_TOKEN` header'ını ekler
-3. İsteği `https://api.github.com/...` adresine forward eder
-4. Yanıtı istemciye döner
+3. `User-Agent` header'ını ekler (GitHub bu header'ı zorunlu tutar)
+4. İsteği `https://api.github.com/...` adresine forward eder
+5. Yanıtı istemciye döner
 
 **Neden gerekli?** Müşterinin GitHub token'ını bilmemesi için. Token yalnızca sunucu tarafında (ortam değişkeni olarak) tutulur.
+
+### Logout
+
+`/api/auth/logout` her iki cookie'yi de siler:
+- `netmimar_session` → siler
+- `keystatic-gh-access-token` → siler
+- Kullanıcıyı `/login`'e yönlendirir
 
 ---
 
@@ -558,13 +684,210 @@ Bu projede **TailwindCSS v4** kullanılmaktadır. V4'te yapılandırma `tailwind
 
 ---
 
-## 11. Cloudflare Deploy — Adım Adım
+## 11. astro.config.mjs Açıklaması
+
+Bu dosya projenin en kritik yapılandırma dosyasıdır. İçindeki her satır belirli bir sorunu çözmek için vardır. **Ellemeyin!**
+
+### Tam Yapı Açıklaması
+
+```javascript
+// 1. Adapter — Cloudflare Pages'a deploy için
+import cloudflare from "@astrojs/cloudflare";
+
+// 2. keystatic() entegrasyonu — Özel sarmalayıcı ile
+import keystatic from "@keystatic/astro";
+
+// NOT: keystatic() doğrudan kullanılmaz!
+// keystaticNoApiRoute() sarmalayıcısı kullanılır (aşağıda açıklanıyor)
+```
+
+### `keystaticNoApiRoute()` Sarmalayıcısı — Neden Var?
+
+Keystatic'in Astro entegrasyonu (`@keystatic/astro`) otomatik olarak `/api/keystatic/[...params]` route'unu oluşturmak ister. **Ama bizim zaten özel bir proxy'miz var** (`src/pages/api/keystatic/[...params].ts`). İki route aynı path'i kullandığında **route collision** hatası oluşur.
+
+Bu sarmalayıcı:
+1. `keystatic()` fonksiyonunu çağırır
+2. Dönen entegrasyon objesini klonlar
+3. `hooks.astro:config:setup` içindeki `injectRoute` fonksiyonunu **override** eder
+4. `/api/keystatic` ile başlayan route enjeksiyonlarını **engeller**
+5. Diğer route'ları (admin paneli UI) olduğu gibi bırakır
+
+> **Bu fonksiyona dokunmayın.** Silip `keystatic()` olarak kullanırsanız build patlar.
+
+### Vite Alias — `react-dom/server.edge`
+
+```javascript
+vite: {
+  resolve: {
+    alias: {
+      "react-dom/server": "react-dom/server.edge",
+    },
+  },
+},
+```
+
+**Neden var?** Keystatic admin paneli React ile render edilir. `react-dom/server` normal halinde `MessageChannel` API'sini kullanır. Cloudflare Workers'da `MessageChannel` yoktur. `react-dom/server.edge` edge runtime'a uygun alternatiftir.
+
+> **Bu alias'ı silmeyin.** Sildiğinizde `MessageChannel is not defined` hatası alırsınız.
+
+### TailwindCSS Vite Plugin
+
+```javascript
+import tailwindcss from "@tailwindcss/vite";
+// ...
+vite: { plugins: [tailwindcss()] }
+```
+
+TailwindCSS v4, Vite plugin üzerinden çalışır. `tailwind.config.js` yoktur — yapılandırma `global.css` içindeki `@theme` bloğunda yapılır.
+
+---
+
+## 12. Cloudflare Workers Uyumluluk Notları
+
+Bu proje Cloudflare Workers (Pages Functions) runtime'ında çalışır. Workers, Node.js'den farklıdır ve bazı sınırlamaları vardır. Aşağıdaki sorunlar çözülmüştür — ilgili kodlara **dokunmayın**.
+
+### Fetch `cache` Alanı Sorunu
+
+**Sorun:** Keystatic, `fetch({ cache: 'no-store' })` çağrısı yapar. Cloudflare Workers bu `cache` alanını desteklemez ve hata fırlatır:
+```
+The 'cache' field on 'RequestInitializerDict' is not implemented.
+```
+
+**Çözüm:** `middleware.ts` dosyasının en üstünde `globalThis.fetch` patch'lenir. Bu patch, her `fetch` çağrısından `cache` alanını siler:
+
+```typescript
+const _origFetch = globalThis.fetch;
+globalThis.fetch = (input: any, init?: any) => {
+  if (init) { delete init.cache; }
+  return _origFetch(input, init);
+};
+```
+
+> **Bu patch'i silmeyin.** Sildiğinizde Keystatic admin paneli çalışmaz (production'da).
+
+### `MessageChannel` Yokluğu
+
+Workers'da `MessageChannel` API'si yoktur. React SSR normalde bunu kullanır. `astro.config.mjs`'deki `react-dom/server.edge` alias'ı ile çözülmüştür (Bkz. Bölüm 11).
+
+### Node.js `fs` Yokluğu
+
+Workers'da dosya sistemi yoktur (`fs`, `path` modülleri çalışmaz). Ancak **build sırasında** bu modüller çalışır çünkü build Node.js ortamında gerçekleşir. Bu yüzden `createReader` build-time'da kullanılabilir ama runtime'da kullanılamaz. Prerender mimarisi bu sorunu ortadan kaldırır.
+
+### `nodejs_compat_v2` Flag'i
+
+`wrangler.toml`'da:
+```toml
+compatibility_flags = ["nodejs_compat_v2"]
+```
+
+Bu flag bazı Node.js API'lerinin Workers'da çalışmasını sağlar. Kaldırmayın.
+
+---
+
+## 13. Developer Rehberi — Ön Yüz Tasarımını Değiştirme
+
+Bu bölüm, siteye yeni tasarım giydirmek isteyen developer için yazılmıştır.
+
+### ✏️ DEĞİŞTİREBİLECEĞİN Dosyalar
+
+| Dosya | Ne Yaparsın |
+|-------|-------------|
+| `src/styles/global.css` | Renk token'ları, fontlar, genel stiller. `@theme` bloğunu düzenle. |
+| `src/layouts/BaseLayout.astro` | Header, footer, `<head>` meta tagları, Google Fonts linki. Ortak UI. |
+| `src/pages/index.astro` | Ana sayfa HTML/CSS tasarımı. `---` altındaki HTML bölümünü değiştir. |
+| `src/pages/hizmetler/index.astro` | Hizmetler listesi tasarımı. |
+| `src/pages/hizmetler/[slug].astro` | Hizmet detay sayfası tasarımı. |
+| `src/pages/projeler/index.astro` | Projeler listesi tasarımı. |
+| `src/pages/projeler/[slug].astro` | Proje detay sayfası tasarımı. |
+| `src/pages/blog/index.astro` | Blog listesi tasarımı. |
+| `src/pages/blog/[slug].astro` | Blog yazısı detay tasarımı. |
+| `src/pages/ekip.astro` | Ekip sayfası tasarımı. |
+| `src/pages/kvkk.astro` | KVKK sayfası tasarımı. |
+| `src/pages/gizlilik.astro` | Gizlilik sayfası tasarımı. |
+| `src/pages/login.astro` | Login sayfası tasarımı (ayrı bir layout, BaseLayout kullanmaz). |
+| `public/images/brand/` | Logo ve favicon dosyaları (değiştir veya yeniden yükle). |
+
+### 🚨 DOKUNMA Dosyalar
+
+| Dosya | Neden Dokunma |
+|-------|---------------|
+| `src/lib/reader.ts` | CMS okuma köprüsü. Çalışıyor, bozulursa içerik gelmez. |
+| `src/middleware.ts` | Fetch patch + auth. Bozulursa admin paneli çalışmaz. |
+| `astro.config.mjs` | Kritik alias ve sarmalayıcılar. Bozulursa build patlar. |
+| `keystatic.config.ts` | CMS şeması. Değiştirirsen mevcut içeriklerle uyum bozulur. |
+| `src/pages/api/**` | Auth, contact, GitHub proxy. Backend logic. |
+| `src/content/**` | CMS tarafından yönetilir. Elle düzenleme yapma. |
+| `wrangler.toml` | Cloudflare konfigürasyonu. Yanlış değişiklik deploy'u bozar. |
+| `src/env.d.ts` | TypeScript type tanımları. |
+| `src/content.config.ts` | Astro content collections. `keystatic.config.ts` ile eşleşmeli. |
+
+### Astro Dosya Yapısı — Script vs Template
+
+Her `.astro` dosyası iki bölümden oluşur:
+
+```astro
+---
+// 📦 SCRIPT (Frontmatter) — CMS veri çekme kodu
+// ⚠️ Bu bölüme dokunma (prerender, import, reader çağrıları)
+export const prerender = true;
+
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getReader } from "../../lib/reader";
+
+const reader = getReader();
+const services = await reader.collections.services.all();
+---
+
+<!-- 🎨 TEMPLATE — HTML/CSS tasarım kodu -->
+<!-- ✅ Bu bölümü istediğin gibi değiştir -->
+<BaseLayout title="Hizmetlerimiz">
+  <section class="py-20">
+    {services.map((s) => (
+      <div class="p-4">
+        <h2>{s.entry.title}</h2>
+        <img src={s.entry.coverImage} alt={s.entry.title} />
+      </div>
+    ))}
+  </section>
+</BaseLayout>
+```
+
+> **Altın kural:** `---` içindeki koda dokunma, `---` altındaki HTML/CSS'i istediğin gibi değiştir.
+
+### Yeni Sayfa Ekleme İş Akışı
+
+Mevcut bir collection için yeni sayfa eklemenize gerek yok — zaten `[slug].astro` her yeni içerik için otomatik sayfa oluşturur.
+
+Tamamen **yeni bir statik sayfa** eklemek isterseniz (ör: `/hakkimizda`):
+
+1. `src/pages/hakkimizda.astro` dosyası oluştur
+2. En üste `export const prerender = true;` ekle
+3. `getReader()` ile gerekli CMS verisini çek
+4. HTML/CSS tasarımını yaz
+5. **Build ve deploy** — yeni sayfa otomatik oluşturulur
+
+### İçerik Güncellemesi Sonrası Ne Olur?
+
+```
+Müşteri admin panelden değişiklik yapar
+       → Keystatic değişikliği GitHub'a commit eder
+       → Cloudflare Pages webhook'u tetiklenir
+       → Yeni build başlar (1-2 dakika)
+       → Statik HTML dosyaları yeniden üretilir
+       → Site güncellenir
+```
+
+Yani developer olarak **hiçbir şey yapmanıza gerek yok**. Müşteri içerik değiştirdiğinde site otomatik güncellenir.
+
+---
+
+## 14. Cloudflare Deploy — Adım Adım
 
 ### Ön Koşullar
 
 - Cloudflare hesabı
 - `wrangler` CLI kurulu (`npm i -g wrangler`)
-- GitHub repository (içerik depolama için)
+- GitHub repository (içerik depolama + auto-build tetikleme için)
 
 ### Adım 1: GitHub Repository Hazırlığı
 
@@ -613,6 +936,22 @@ wrangler d1 execute netmimar-contacts --remote --file=./schema.sql
 
 ### Adım 5: Cloudflare Pages Projesi
 
+**Seçenek A — GitHub Bağlantılı (Önerilen):**
+
+Cloudflare Dashboard → Pages → Create a project → Connect to Git
+
+1. GitHub hesabınızı bağlayın
+2. Repo'yu seçin
+3. Build ayarları:
+   - **Framework preset:** `Astro`
+   - **Build command:** `npm run build`
+   - **Build output directory:** `dist`
+4. Deploy'a tıklayın
+
+> **Bu yöntemle:** GitHub'a her push geldiğinde Cloudflare otomatik build alır. Müşteri admin panelden değişiklik yapınca → GitHub'a commit → auto-build → site güncellenir. **Manuel deploy gerekmez.**
+
+**Seçenek B — Manuel deploy (wrangler ile):**
+
 ```bash
 # Build
 npm run build
@@ -620,6 +959,8 @@ npm run build
 # Deploy
 wrangler pages deploy ./dist
 ```
+
+> Bu yöntemde her güncelleme için elle `build + deploy` çalıştırmanız gerekir. Önerilmez.
 
 ### Adım 6: Ortam Değişkenleri Tanımlama
 
@@ -640,7 +981,7 @@ Aşağıdaki tüm değişkenleri ekleyin:
 
 ---
 
-## 12. Yeni Müşteri Sitesi Kurulumu (White-Label Fork Rehberi)
+## 15. Yeni Müşteri Sitesi Kurulumu (White-Label Fork Rehberi)
 
 Bu boilerplate'ten yeni bir müşteri sitesi oluşturmak için:
 
@@ -707,11 +1048,13 @@ Developer olarak yapmanız gereken:
 
 ### 5. Deploy Et
 
-Bölüm 11'deki adımları takip edin.
+Bölüm 14'teki adımları takip edin.
 
 ---
 
 ## Sık Yapılan Hatalar
+
+### Genel Hatalar
 
 | Hata | Çözüm |
 |------|-------|
@@ -719,10 +1062,20 @@ Bölüm 11'deki adımları takip edin.
 | Görseller görünmüyor | Görseller `public/images/` altında olmalı. Path'in başında `/images/...` olduğundan emin olun. |
 | Login çalışmıyor | `CLIENT_EMAIL`, `CLIENT_PASSWORD` ve `COOKIE_SECRET` ortam değişkenleri tanımlı mı kontrol edin. |
 | Keystatic paneli açılmıyor (prod) | `GITHUB_TOKEN` doğru mu? Token permission'ları yeterli mi? `PUBLIC_REPO_OWNER` ve `PUBLIC_REPO_NAME` doğru mu? |
-| Content değişiklikleri görünmüyor (prod) | GitHub'a commit yapıldığından emin olun. Keystatic auto-commit yapıyor ama bazen sıkışabilir. |
+| Content değişiklikleri görünmüyor (prod) | Admin panelden save edildikten sonra 1-2 dakika bekleyin — Cloudflare otomatik build tetikler. CF Dashboard → Pages → Deployments'tan build durumunu kontrol edin. |
 | `npm run dev` çalışmıyor | `npm install` çalıştırdığınızdan emin olun. Node.js ≥ 18 gerekli. |
 | Build hatası: "Cannot find module" | `npm install` çalıştırın, `node_modules` temizlenmiş olabilir. |
-| D1 hatası: "no such table: contacts" | `schema.sql` dosyasını D1'e uyguladığınıdan emin olun (Adım 4). |
+| D1 hatası: "no such table: contacts" | `schema.sql` dosyasını D1'e uyguladığınızdan emin olun (Bölüm 14 Adım 4). |
+
+### Cloudflare Workers'a Özgü Hatalar
+
+| Hata | Sebep | Çözüm |
+|------|-------|-------|
+| `MessageChannel is not defined` | `react-dom/server` Workers'da çalışmaz | `astro.config.mjs`'deki `react-dom/server.edge` alias'ını kontrol edin. Silmeyin! |
+| `The 'cache' field on 'RequestInitializerDict' is not implemented` | Workers'da `fetch({ cache: ... })` desteklenmez | `middleware.ts`'deki fetch patch'ini kontrol edin. Silmeyin! |
+| `Route collision: /api/keystatic/[...params]` | Keystatic kendi route'unu enjekte etmeye çalışır | `astro.config.mjs`'deki `keystaticNoApiRoute()` sarmalayıcısını kontrol edin. |
+| `export const prerender = true` olan sayfa 500 veriyor | Build sırasında içerik dosyası eksik veya hatalı | İlgili `.mdoc` / `.json` dosyasının `src/content/` altında var olduğundan emin olun. |
+| Yeni eklenen blog/hizmet sayfası 404 veriyor | `getStaticPaths()` yeni slug'u build sırasında üretmedi | Yeni içerik eklendikten sonra build tetiklenmeli. Cloudflare otomatik yapıyor, ama local'de `npm run build` gerekir. |
 
 ---
 
