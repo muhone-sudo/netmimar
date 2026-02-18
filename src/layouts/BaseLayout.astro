@@ -63,7 +63,9 @@ const {
       rel="stylesheet"
     />
     <title>{title}</title>
-  </head>{headerScripts && <Fragment set:html={headerScripts} />}
+    {headerScripts && <Fragment set:html={headerScripts} />}
+  </head>
+  <body class="flex flex-col min-h-screen">
 
 
   <!-- Header -->
@@ -442,4 +444,5 @@ const {
       menu?.classList.toggle("hidden");
     });
   </script>
+</body>
 </html>

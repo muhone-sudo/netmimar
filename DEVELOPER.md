@@ -163,7 +163,7 @@ Singleton = Tek bir kayıt. Birden fazla oluşturulamaz. Site genelinde bir tane
 | `heroBackgroundImage` | image | Hero arka plan görseli (`public/images/hero/`) |
 | `heroCtaText` | text | CTA buton metni |
 | `heroCtaLink` | text | CTA buton linki |
-| `features` | array | Özellik kartları (icon, title, description) |
+| `features` | array | Özellik kartları (iconClass, title, description) |
 | `counters` | array | İstatistik sayaçları (number, label) |
 | `testimonials` | array | Müşteri yorumları (clientName, clientRole, clientPhoto, quote) |
 
@@ -382,10 +382,8 @@ Production'da Keystatic, GitHub API üzerinden içerik okur/yazar. Bu proxy:
 | Değişken | Nerede Kullanılır | Açıklama | Örnek |
 |----------|-------------------|----------|-------|
 | `GITHUB_TOKEN` | GitHub proxy | Agency'nin GitHub Personal Access Token'ı | `ghp_xxxx...` |
-| `REPO_OWNER` | wrangler.toml + proxy | GitHub repo sahibi | `muhone-sudo` |
-| `REPO_NAME` | wrangler.toml + proxy | GitHub repo adı | `netmimar-client` |
-| `PUBLIC_REPO_OWNER` | Keystatic config (client-side) | Keystatic'in GitHub storage config'i | `muhone-sudo` |
-| `PUBLIC_REPO_NAME` | Keystatic config (client-side) | Keystatic'in GitHub storage config'i | `netmimar-client` |
+| `PUBLIC_REPO_OWNER` | Keystatic config (client-side) | GitHub repo sahibi — Keystatic GitHub storage için | `muhone-sudo` |
+| `PUBLIC_REPO_NAME` | Keystatic config (client-side) | GitHub repo adı — Keystatic GitHub storage için | `netmimar-client` |
 | `CLIENT_EMAIL` | login.ts | Müşteri giriş e-postası | `admin@example.com` |
 | `CLIENT_PASSWORD` | login.ts | Müşteri giriş şifresi | `SecurePass123!` |
 | `COOKIE_SECRET` | middleware.ts + login.ts | HMAC imzalama anahtarı (min 32 karakter) | `s3kr3t-k3y-4t-l34st-32-ch4rs!!` |
@@ -397,6 +395,8 @@ Production'da Keystatic, GitHub API üzerinden içerik okur/yazar. Bu proxy:
 cp .env.example .env
 # Değerleri düzenle
 ```
+
+> **Not:** `.env.example` dosyası projede hazır olarak bulunmaktadır. Tüm değişken isimlerini içerir, değerleri boş bırakılmıştır.
 
 **Production (Cloudflare):** Cloudflare Dashboard → Pages → Proje → Settings → Environment Variables
 
@@ -585,16 +585,6 @@ Aşağıdaki tüm değişkenleri ekleyin:
 | `COOKIE_SECRET` | Min 32 karakter rastgele string |
 
 > **Önemli:** `COOKIE_SECRET` için `openssl rand -base64 32` komutu ile güçlü bir anahtar oluşturun.
-
-### Adım 7: KV Namespace (Opsiyonel)
-
-`wrangler.toml` içinde `SESSION` KV binding tanımlı. Kullanılacaksa:
-
-```bash
-wrangler kv namespace create SESSION
-```
-
-Çıktıdaki `id`'yi `wrangler.toml`'a yazın.
 
 ---
 

@@ -12,7 +12,7 @@ export default config({
                 kind: 'github',
                 repo: {
                     owner: import.meta.env.PUBLIC_REPO_OWNER || 'muhone-sudo',
-                    name: import.meta.env.PUBLIC_REPO_NAME || 'netmimar-client',
+                    name: import.meta.env.PUBLIC_REPO_NAME || 'netmimar-base',
                 },
             },
 
