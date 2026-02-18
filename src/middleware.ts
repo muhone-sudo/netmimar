@@ -6,20 +6,41 @@ import { defineMiddleware } from 'astro:middleware';
  * Keystatic'in GitHub reader'ı:
  * 1) fetch({ cache: 'no-store' }) kullanıyor — CF Workers bunu desteklemiyor
  * 2) User-Agent header'ı eklemiyor — GitHub API 403 döndürüyor
+ * 3) Her sayfa yüklemesinde çok sayıda GitHub API isteği yapılıyor — yavaş
  * 
- * Middleware her request'ten önce çalıştığı için patch burada uygulanır.
- * Birden fazla uygulanmaması için flag kontrolü var.
+ * Bu patch:
+ * - 'cache' alanını siler (CF Workers uyumluluğu)
+ * - User-Agent header'ı ekler (GitHub API zorunluluğu)
+ * - GitHub API isteklerini Cloudflare edge'de 60sn cache'ler (performans)
  */
 if (!(globalThis as any).__fetchPatched) {
     const _originalFetch = globalThis.fetch;
     globalThis.fetch = function patchedFetch(input: any, init?: any) {
+        const url = typeof input === 'string' ? input : input?.url || '';
+        const isGitHubApi = url.includes('api.github.com');
+
         if (init) {
             const { cache: _cache, ...rest } = init;
             const headers = new Headers(rest.headers || {});
             if (!headers.has('User-Agent')) {
                 headers.set('User-Agent', 'netmimar-keystatic');
             }
+            // GitHub API yanıtlarını Cloudflare edge'de 60sn cache'le
+            if (isGitHubApi) {
+                return _originalFetch(input, {
+                    ...rest,
+                    headers,
+                    cf: { cacheTtl: 60, cacheEverything: true },
+                } as any);
+            }
             return _originalFetch(input, { ...rest, headers });
+        }
+
+        if (isGitHubApi) {
+            return _originalFetch(input, {
+                headers: { 'User-Agent': 'netmimar-keystatic' },
+                cf: { cacheTtl: 60, cacheEverything: true },
+            } as any);
         }
         return _originalFetch(input);
     };
