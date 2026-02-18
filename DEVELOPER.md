@@ -66,7 +66,7 @@ admin-base-site-structure/
 └── src/
     ├── env.d.ts               # TypeScript type tanımları (CloudflareEnv)
     ├── content.config.ts      # Astro Content Collections şeması
-    ├── middleware.ts           # Fetch patch + Auth middleware — /admin yollarını korur
+    ├── middleware.ts           # Fetch patch + Auth middleware — /keystatic yollarını korur
     ├── lib/
     │   └── reader.ts          # getReader() helper — CMS verilerini okuyan fonksiyon
     ├── styles/
@@ -242,21 +242,21 @@ Collection = Birden fazla kayıt oluşturulabilen yapı. Her kayıt bir dosyadı
 
 Bu site **JAMstack mimarisi** kullanır. İçerik sayfaları (ana sayfa, blog, hizmetler vb.) **build sırasında** statik HTML olarak üretilir. Ziyaretçi siteye girdiğinde **hazır HTML** servis edilir — hiçbir API çağrısı, veritabanı sorgusu veya sunucu işlemi olmaz.
 
-**Sadece** admin paneli (`/admin`) ve API endpoint'leri (`/api/*`) runtime'da SSR olarak çalışır.
+**Sadece** admin paneli (`/keystatic`) ve API endpoint'leri (`/api/*`) runtime'da SSR olarak çalışır.
 
 ### Veri Akışı — Büyük Resim
 
 ```
 ┌────────────────┐    ┌──────────┐    ┌─────────────────┐    ┌──────────────────┐
 │ Admin Paneli   │───→│ GitHub   │───→│ Cloudflare Pages │───→│ Statik HTML      │
-│ (/admin)        │    │ Push     │    │ Auto Build       │    │ CDN'den servis   │
+│ (/keystatic)   │    │ Push     │    │ Auto Build       │    │ CDN'den servis   │
 │ İçerik düzenle │    │ (commit) │    │ (1-2 dk)         │    │ (anında yüklenir)│
 └────────────────┘    └──────────┘    └─────────────────┘    └──────────────────┘
 ```
 
 ### Adım adım:
 
-1. **Müşteri** admin paneline giriş yapar (`/login` → `/admin`)
+1. **Müşteri** admin paneline giriş yapar (`/login` → `/keystatic`)
 2. Müşteri bir içerik düzenler (ör: yeni bir blog yazısı ekler)
 3. "Save" butonuna basar → Keystatic bu değişikliği **GitHub'a commit** eder
 4. GitHub'a push geldiğinde **Cloudflare Pages otomatik build tetikler** (webhook)
@@ -276,7 +276,7 @@ Bu site **JAMstack mimarisi** kullanır. İçerik sayfaları (ana sayfa, blog, h
 | `/ekip` | **Prerender** (statik) | Build sırasında |
 | `/kvkk`, `/gizlilik` | **Prerender** (statik) | Build sırasında |
 | `/login` | **Prerender** (statik) | Build sırasında |
-| `/admin/*` | **SSR** (runtime) | Her ziyarette |
+| `/keystatic/*` | **SSR** (runtime) | Her ziyarette |
 | `/api/*` | **SSR** (runtime) | Her istekte |
 
 > **Prerendered sayfalar** `export const prerender = true;` ile işaretlidir. Astro, build sırasında bu sayfaları çalıştırır ve çıktıyı statik HTML olarak kaydeder.
@@ -393,7 +393,7 @@ const content = await service.content();
 | `/kvkk` | `pages/kvkk.astro` | **Prerender** | settings (kvkkText document) | KVKK aydınlatma metni |
 | `/gizlilik` | `pages/gizlilik.astro` | **Prerender** | settings (privacyPolicy document) | Gizlilik politikası |
 | `/login` | `pages/login.astro` | **Prerender** | — | Giriş formu (noindex) |
-| `/admin` | Keystatic UI (otomatik) | **SSR** | — | Admin paneli (korumalı, runtime) |
+| `/keystatic` | Keystatic UI (otomatik) | **SSR** | — | Admin paneli (korumalı, runtime) |
 
 > **Prerender** = Build sırasında statik HTML üretilir, CDN'den servis edilir, süper hızlı.
 > **SSR** = Her istekte Cloudflare Workers runtime'da çalışır.
@@ -402,7 +402,7 @@ const content = await service.content();
 
 | URL | Metot | Dosya | İşlev |
 |-----|-------|-------|-------|
-| `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, 2 cookie set etme, `/admin`'e yönlendirme |
+| `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, 2 cookie set etme, `/keystatic`'e yönlendirme |
 | `/api/auth/logout` | GET/POST | `pages/api/auth/logout.ts` | 2 cookie silme, `/login`'e yönlendirme |
 | `/api/contact` | POST | `pages/api/contact.ts` | İletişim formu → D1 veritabanına kayıt |
 | `/api/keystatic/[...params]` | ALL | `pages/api/keystatic/[...params].ts` | GitHub API proxy + internal auth route handler |
@@ -418,11 +418,11 @@ const content = await service.content();
 │ /login  │───→│ POST         │───→│ Credential         │───→│ 2 Cookie Set:         │
 │ Formu   │    │ /api/auth/   │    │ Doğrulama          │    │ 1. netmimar_session   │
 │         │    │ login        │    │ (env vars ile)     │    │ 2. keystatic-gh-...   │
-└─────────┘    └──────────────┘    └────────────────────┘    │ + Redirect /admin   │
+└─────────┘    └──────────────┘    └────────────────────┘    │ + Redirect /keystatic │
                                                              └───────────────────────┘
 
 ┌────────────────┐    ┌────────────────┐    ┌─────────────────────┐
-│ /admin         │───→│ middleware.ts   │───→│ Cookie HMAC doğrula │
+│ /keystatic     │───→│ middleware.ts   │───→│ Cookie HMAC doğrula │
 │ veya           │    │ (her request)  │    │ + Süre kontrolü     │
 │ /api/keystatic │    │                │    │ Başarısız → /login  │
 └────────────────┘    └────────────────┘    └─────────────────────┘
@@ -443,7 +443,7 @@ base64(JSON.stringify({ email, iat, exp })).HMAC_SHA256_SIGNATURE
 - İmza `COOKIE_SECRET` ile `HMAC-SHA256` kullanılarak üretilir
 - İmza URL-safe Base64 formatındadır (`+` → `-`, `/` → `_`, trailing `=` kaldırılır)
 - **httpOnly: true** — JavaScript erişemez, güvenli
-- **Amacı:** Middleware, bu cookie'yi kontrol ederek `/admin` ve `/api/keystatic` erişimini doğrular
+- **Amacı:** Middleware, bu cookie'yi kontrol ederek `/keystatic` ve `/api/keystatic` erişimini doğrular
 
 #### 2. `keystatic-gh-access-token` — GitHub Token Cookie
 
@@ -460,7 +460,7 @@ Değer: GITHUB_TOKEN (ortam değişkeninden)
 ### Korunan Yollar
 
 `middleware.ts` şu yolları korur:
-- `/admin` ve altı
+- `/keystatic` ve altı
 - `/api/keystatic` ve altı
 
 Diğer tüm yollar (ana sayfa, blog, hizmetler vb.) herkese açıktır.
@@ -545,7 +545,7 @@ Internal route'lar dışındaki tüm istekler GitHub API'ye proxy'lenir:
 
 #### `CLIENT_EMAIL` — Admin Paneli Giriş E-postası
 
-**Ne işe yarıyor?** `/login` sayfasındaki giriş formunda kullanılır. Bu e-posta ile giriş yapan kişi `/admin` admin paneline yönlendirilir.
+**Ne işe yarıyor?** `/login` sayfasındaki giriş formunda kullanılır. Bu e-posta ile giriş yapan kişi `/keystatic` admin paneline yönlendirilir.
 
 **Nasıl belirlenir?** Müşteriye vereceğiniz herhangi bir e-posta adresi. Gerçek bir e-posta hesabıyla ilişkili olmak zorunda değil, sadece giriş bilgisi olarak kullanılır.
 
@@ -557,7 +557,7 @@ Internal route'lar dışındaki tüm istekler GitHub API'ye proxy'lenir:
 
 #### `COOKIE_SECRET` — Session Cookie İmzalama Anahtarı
 
-**Ne işe yarıyor?** Giriş başarılı olduğunda oluşturulan session cookie'sini HMAC-SHA256 ile imzalar. Bu sayede cookie'nin sahte olup olmadığı doğrulanır. Middleware (`middleware.ts`) her `/admin` isteğinde bu imzayı kontrol eder.
+**Ne işe yarıyor?** Giriş başarılı olduğunda oluşturulan session cookie'sini HMAC-SHA256 ile imzalar. Bu sayede cookie'nin sahte olup olmadığı doğrulanır. Middleware (`middleware.ts`) her `/keystatic` isteğinde bu imzayı kontrol eder.
 
 **Nasıl üretilir?** Terminalde:
 ```bash
@@ -703,20 +703,14 @@ import keystatic from "@keystatic/astro";
 
 ### `keystaticNoApiRoute()` Sarmalayıcısı — Neden Var?
 
-Keystatic'in Astro entegrasyonu (`@keystatic/astro`) otomatik olarak iki route enjekte eder:
-- `/keystatic/[...params]` — Admin paneli UI sayfası
-- `/api/keystatic/[...params]` — API handler
-
-**Ama bizim özelleştirmelerimiz var:**
-1. API route için özel proxy'miz var (`src/pages/api/keystatic/[...params].ts`) — collision olmaması için Keystatic'in kendi API route'u engellenir
-2. Admin paneli URL'ini `/keystatic` yerine `/admin` olarak sunuyoruz — müşteriye daha temiz URL
+Keystatic'in Astro entegrasyonu (`@keystatic/astro`) otomatik olarak `/api/keystatic/[...params]` route'unu oluşturmak ister. **Ama bizim zaten özel bir proxy'miz var** (`src/pages/api/keystatic/[...params].ts`). İki route aynı path'i kullandığında **route collision** hatası oluşur.
 
 Bu sarmalayıcı:
 1. `keystatic()` fonksiyonunu çağırır
 2. Dönen entegrasyon objesini klonlar
 3. `hooks.astro:config:setup` içindeki `injectRoute` fonksiyonunu **override** eder
-4. `/api/keystatic` route enjeksiyonunu **engeller** (bizim proxy'miz var)
-5. `/keystatic/[...params]` route'unu `/admin/[...params]` olarak **yeniden yönlendirir**
+4. `/api/keystatic` ile başlayan route enjeksiyonlarını **engeller**
+5. Diğer route'ları (admin paneli UI) olduğu gibi bırakır
 
 > **Bu fonksiyona dokunmayın.** Silip `keystatic()` olarak kullanırsanız build patlar.
 

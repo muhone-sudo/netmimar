@@ -20,14 +20,14 @@ if (!(globalThis as any).__fetchPatched) {
 
 /**
  * NetMimar Auth Middleware
- * /admin ve /api/keystatic yollarını korur.
+ * /keystatic ve /api/keystatic yollarını korur.
  * Geçerli session cookie'si olmayan istekleri /login'e yönlendirir.
  */
 export const onRequest = defineMiddleware(async (context, next) => {
     const { pathname } = context.url;
 
     // Korunan yollar
-    const protectedPaths = ['/admin', '/api/keystatic'];
+    const protectedPaths = ['/keystatic', '/api/keystatic'];
     const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
     if (!isProtected) {

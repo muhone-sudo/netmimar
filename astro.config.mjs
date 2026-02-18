@@ -22,11 +22,6 @@ function keystaticNoApiRoute() {
         options.injectRoute = (route) => {
           // API route'unu atla — biz bunu src/pages/api/keystatic/[...params].ts ile yönetiyoruz
           if (route.pattern === '/api/keystatic/[...params]') return;
-          // Admin UI route'unu /keystatic → /admin olarak değiştir
-          if (route.pattern === '/keystatic/[...params]') {
-            originalInjectRoute({ ...route, pattern: '/admin/[...params]' });
-            return;
-          }
           originalInjectRoute(route);
         };
         original.hooks['astro:config:setup'](options);
