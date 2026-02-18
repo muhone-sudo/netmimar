@@ -1,10 +1,9 @@
 ---
 import BaseLayout from "../layouts/BaseLayout.astro";
-import { createReader } from "@keystatic/core/reader";
-import keystaticConfig from "../../keystatic.config";
+import { getReader } from "../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
-const reader = createReader(process.cwd(), keystaticConfig);
+const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
 const settings = await reader.singletons.settings.read();
 
 let kvkkContent: any = null;

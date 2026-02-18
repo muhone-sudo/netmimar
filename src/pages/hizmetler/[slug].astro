@@ -1,11 +1,10 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
-import { createReader } from "@keystatic/core/reader";
-import keystaticConfig from "../../../keystatic.config";
+import { getReader } from "../../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
 const { slug } = Astro.params;
-const reader = createReader(process.cwd(), keystaticConfig);
+const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
 
 const service = slug ? await reader.collections.services.read(slug) : null;
 if (!service) {
