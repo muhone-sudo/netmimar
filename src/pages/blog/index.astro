@@ -2,14 +2,19 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getReader } from "../../lib/reader";
 
-const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-const blogRaw = await reader.collections.blog.all();
-const posts = blogRaw
-    .map((b) => ({ slug: b.slug, ...b.entry }))
-    .sort(
-        (a: any, b: any) =>
-            new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
-    );
+let posts: any[] = [];
+try {
+    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    const blogRaw = await reader.collections.blog.all();
+    posts = blogRaw
+        .map((b) => ({ slug: b.slug, ...b.entry }))
+        .sort(
+            (a: any, b: any) =>
+                new Date(b.date || 0).getTime() - new Date(a.date || 0).getTime()
+        );
+} catch (e) {
+    console.error("Blog read error:", e);
+}
 ---
 
 <BaseLayout title="Blog — NetMimar">

@@ -4,14 +4,20 @@ import { getReader } from "../../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
 const { slug } = Astro.params;
-const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-
-const post = slug ? await reader.collections.blog.read(slug) : null;
+let post: any = null;
+let content: any = null;
+try {
+    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    post = slug ? await reader.collections.blog.read(slug) : null;
+    if (post) {
+        content = await post.body();
+    }
+} catch (e) {
+    console.error("Blog post read error:", e);
+}
 if (!post) {
     return Astro.redirect("/blog");
 }
-
-const content = await post.body();
 ---
 
 <BaseLayout title={`${post.title} — Blog`}>
@@ -87,7 +93,7 @@ const content = await post.body();
             </div>
 
             <div class="prose prose-lg max-w-none">
-                <DocumentRenderer document={content} />
+                {content ? <DocumentRenderer document={content} /> : <p class="text-text-muted">İçerik yüklenemedi.</p>}
             </div>
         </div>
     </article>

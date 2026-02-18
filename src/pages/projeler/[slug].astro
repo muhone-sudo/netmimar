@@ -4,14 +4,20 @@ import { getReader } from "../../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
 const { slug } = Astro.params;
-const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-
-const project = slug ? await reader.collections.projects.read(slug) : null;
+let project: any = null;
+let content: any = null;
+try {
+    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    project = slug ? await reader.collections.projects.read(slug) : null;
+    if (project) {
+        content = await project.description();
+    }
+} catch (e) {
+    console.error("Project read error:", e);
+}
 if (!project) {
     return Astro.redirect("/projeler");
 }
-
-const content = await project.description();
 ---
 
 <BaseLayout title={`${project.projectName} — Projeler`}>
@@ -71,7 +77,7 @@ const content = await project.description();
             </div>
 
             <div class="prose prose-lg max-w-none mb-12">
-                <DocumentRenderer document={content} />
+                {content ? <DocumentRenderer document={content} /> : <p class="text-text-muted">İçerik yüklenemedi.</p>}
             </div>
 
             <!-- Galeri -->

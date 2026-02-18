@@ -3,16 +3,15 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import { getReader } from "../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
-const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-const settings = await reader.singletons.settings.read();
-
 let kvkkContent: any = null;
 try {
+    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    const settings = await reader.singletons.settings.read();
     if (settings) {
         kvkkContent = await settings.kvkkText();
     }
 } catch (e) {
-    console.warn("KVKK read warning:", e);
+    console.error("KVKK read error:", e);
 }
 ---
 

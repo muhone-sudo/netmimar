@@ -2,9 +2,14 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getReader } from "../../lib/reader";
 
-const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-const projectsRaw = await reader.collections.projects.all();
-const projects = projectsRaw.map((p) => ({ slug: p.slug, ...p.entry }));
+let projects: any[] = [];
+try {
+    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    const projectsRaw = await reader.collections.projects.all();
+    projects = projectsRaw.map((p) => ({ slug: p.slug, ...p.entry }));
+} catch (e) {
+    console.error("Projects read error:", e);
+}
 ---
 
 <BaseLayout title="Projelerimiz — NetMimar">
