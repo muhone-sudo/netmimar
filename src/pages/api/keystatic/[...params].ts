@@ -62,8 +62,25 @@ const handler: APIRoute = async (context) => {
     }
 
     // github/repo-not-found — Repo bulunamadı hatası
+    // Sonsuz döngüyü önlemek için /keystatic'e değil, hata mesajı döndür
     if (params === 'github/repo-not-found') {
-        return context.redirect('/keystatic', 302);
+        return new Response(
+            `<html><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f8fafc;">
+            <div style="text-align:center;max-width:500px;padding:2rem;">
+                <h1 style="color:#ef4444;font-size:1.5rem;">Repo Bulunamadı</h1>
+                <p style="color:#64748b;margin:1rem 0;">Keystatic, GitHub reposuna erişemiyor. Lütfen şunları kontrol edin:</p>
+                <ul style="text-align:left;color:#475569;line-height:2;">
+                    <li><code>PUBLIC_REPO_OWNER</code> ve <code>PUBLIC_REPO_NAME</code> doğru mu?</li>
+                    <li><code>GITHUB_TOKEN</code> bu repoya erişim iznine sahip mi?</li>
+                    <li>Repo private ise token'da <code>contents: read & write</code> izni var mı?</li>
+                </ul>
+                <a href="/keystatic" style="display:inline-block;margin-top:1rem;padding:0.5rem 1rem;background:#3b82f6;color:white;border-radius:0.5rem;text-decoration:none;">Tekrar Dene</a>
+            </div></body></html>`,
+            {
+                status: 200,
+                headers: { 'Content-Type': 'text/html; charset=utf-8' },
+            }
+        );
     }
 
     // --- Normal GitHub API proxy ---
