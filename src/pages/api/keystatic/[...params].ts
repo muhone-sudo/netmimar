@@ -4,6 +4,9 @@ import type { APIRoute } from 'astro';
  * GitHub API Proxy for Keystatic
  * Tüm Keystatic CMS isteklerini GitHub API'ye proxy'ler.
  * Agency'nin GITHUB_TOKEN'ını enjekte eder, böylece müşteri GitHub bilmez.
+ *
+ * Keystatic'ın kendi iç auth route'ları (github/login, github/refresh-token vb.)
+ * GitHub API'ye değil, burada özel olarak handle edilir.
  */
 const handler: APIRoute = async (context) => {
     const env = context.locals.runtime.env;
@@ -17,9 +20,54 @@ const handler: APIRoute = async (context) => {
         });
     }
 
-    // Proxy edilecek yolu çıkar
-    // /api/keystatic/repos/owner/repo/... → https://api.github.com/repos/owner/repo/...
     const params = context.params.params || '';
+
+    // --- Keystatic iç auth route'larını handle et ---
+    // Bu route'lar GitHub API endpoint'i değil, Keystatic'in kendi auth akışı için.
+
+    // github/login — Keystatic "Log in with GitHub" butonuna basıldığında gelir.
+    // Token zaten login sırasında cookie olarak set edildi, keystatic'e geri yönlendir.
+    if (params === 'github/login') {
+        // Token cookie'sini yenile (eğer expire olduysa)
+        context.cookies.set('keystatic-gh-access-token', env.GITHUB_TOKEN, {
+            httpOnly: false,
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24,
+        });
+        return context.redirect('/keystatic', 302);
+    }
+
+    // github/refresh-token — Keystatic token yenilemek istediğinde gelir.
+    // PAT (Personal Access Token) expire olmaz, direkt 200 dön.
+    if (params === 'github/refresh-token') {
+        context.cookies.set('keystatic-gh-access-token', env.GITHUB_TOKEN, {
+            httpOnly: false,
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24,
+        });
+        return new Response(JSON.stringify({ ok: true }), {
+            status: 200,
+            headers: { 'Content-Type': 'application/json' },
+        });
+    }
+
+    // github/logout — Keystatic çıkışı
+    if (params === 'github/logout') {
+        context.cookies.delete('keystatic-gh-access-token', { path: '/' });
+        return context.redirect('/keystatic', 302);
+    }
+
+    // github/repo-not-found — Repo bulunamadı hatası
+    if (params === 'github/repo-not-found') {
+        return context.redirect('/keystatic', 302);
+    }
+
+    // --- Normal GitHub API proxy ---
+    // /api/keystatic/repos/owner/repo/... → https://api.github.com/repos/owner/repo/...
     const targetUrl = new URL(params, 'https://api.github.com/');
 
     // Orijinal query parametrelerini koru

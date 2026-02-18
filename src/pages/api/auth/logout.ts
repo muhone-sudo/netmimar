@@ -6,10 +6,12 @@ import type { APIRoute } from 'astro';
  */
 export const GET: APIRoute = async (context) => {
     context.cookies.delete('netmimar_session', { path: '/' });
+    context.cookies.delete('keystatic-gh-access-token', { path: '/' });
     return context.redirect('/login', 302);
 };
 
 export const POST: APIRoute = async (context) => {
     context.cookies.delete('netmimar_session', { path: '/' });
+    context.cookies.delete('keystatic-gh-access-token', { path: '/' });
     return context.redirect('/login', 302);
 };

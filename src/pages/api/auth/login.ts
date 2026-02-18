@@ -78,6 +78,17 @@ export const POST: APIRoute = async (context) => {
             maxAge: 60 * 60 * 24, // 24 saat
         });
 
+        // Keystatic GitHub access token cookie'si
+        // Keystatic frontend bu cookie'yi okuyarak "authenticated" kabul eder.
+        // Böylece "Log in with GitHub" butonu görünmez, GitHub OAuth gerekmez.
+        context.cookies.set('keystatic-gh-access-token', env.GITHUB_TOKEN, {
+            httpOnly: false, // Keystatic frontend JS ile okuyor (document.cookie)
+            secure: true,
+            sameSite: 'lax',
+            path: '/',
+            maxAge: 60 * 60 * 24, // 24 saat
+        });
+
         // Keystatic paneline yönlendir
         return context.redirect('/keystatic', 302);
     } catch (error) {

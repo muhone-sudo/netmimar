@@ -381,12 +381,64 @@ Production'da Keystatic, GitHub API üzerinden içerik okur/yazar. Bu proxy:
 
 | Değişken | Nerede Kullanılır | Açıklama | Örnek |
 |----------|-------------------|----------|-------|
-| `GITHUB_TOKEN` | GitHub proxy | Agency'nin GitHub Personal Access Token'ı | `ghp_xxxx...` |
+| `GITHUB_TOKEN` | GitHub proxy (`/api/keystatic/[...params].ts`) | Agency'nin GitHub Personal Access Token'ı | `ghp_xxxx...` |
 | `PUBLIC_REPO_OWNER` | Keystatic config (client-side) | GitHub repo sahibi — Keystatic GitHub storage için | `muhone-sudo` |
-| `PUBLIC_REPO_NAME` | Keystatic config (client-side) | GitHub repo adı — Keystatic GitHub storage için | `netmimar-client` |
-| `CLIENT_EMAIL` | login.ts | Müşteri giriş e-postası | `admin@example.com` |
-| `CLIENT_PASSWORD` | login.ts | Müşteri giriş şifresi | `SecurePass123!` |
-| `COOKIE_SECRET` | middleware.ts + login.ts | HMAC imzalama anahtarı (min 32 karakter) | `s3kr3t-k3y-4t-l34st-32-ch4rs!!` |
+| `PUBLIC_REPO_NAME` | Keystatic config (client-side) | GitHub repo adı — Keystatic GitHub storage için | `netmimar-base` |
+| `CLIENT_EMAIL` | `login.ts` | Admin paneli giriş e-postası | `admin@example.com` |
+| `CLIENT_PASSWORD` | `login.ts` | Admin paneli giriş şifresi | `SecurePass123!` |
+| `COOKIE_SECRET` | `middleware.ts` + `login.ts` | HMAC imzalama anahtarı (min 32 karakter) | `cEsnqL2I0StPtsps7D+n5KdSz...` |
+
+### Değişkenler Detaylı Açıklama
+
+#### `GITHUB_TOKEN` — GitHub Personal Access Token
+
+**Ne işe yarıyor?** Keystatic, production'da içerikleri GitHub reposuna okuyup yazıyor. Bu işlem GitHub API üzerinden yapılıyor. GitHub API'ye erişmek için yetkili bir token gerekiyor. Bu token `/api/keystatic/[...params].ts` proxy'si üzerinden GitHub'a enjekte ediliyor — müşteri token'ı hiç görmüyor.
+
+**Nereden alınır?**
+1. GitHub → Settings → Developer Settings → Personal Access Tokens → **Fine-grained tokens**
+2. "Generate new token" tıklayın
+3. **Token name:** İstediğiniz bir isim (ör: `netmimar-site-cms`)
+4. **Expiration:** `No expiration` (sınırsız) seçin — süreli yaparsanız her dolduğunda yenilemeniz gerekir
+5. **Repository access:** `Only select repositories` → sadece bu sitenin reposunu seçin
+6. **Permissions → Repository permissions → Contents:** `Read and write`
+7. Token'ı kopyalayın ve Cloudflare'de `GITHUB_TOKEN` olarak kaydedin
+
+> **Güvenlik notu:** Sınırsız token güvenlidir çünkü Fine-grained token ile sadece seçilen repoya ve sadece `contents` iznine erişim verilir. Başka repolar etkilenmez.
+
+#### `PUBLIC_REPO_OWNER` — GitHub Repo Sahibi
+
+**Ne işe yarıyor?** Keystatic'in hangi GitHub hesabındaki repoya bağlanacağını belirler.
+
+**Nereden alınır?** GitHub repository URL'inizden: `https://github.com/OWNER/REPO` → `OWNER` kısmı.
+
+#### `PUBLIC_REPO_NAME` — GitHub Repo Adı
+
+**Ne işe yarıyor?** Keystatic'in hangi repoya bağlanacağını belirler.
+
+**Nereden alınır?** GitHub repository URL'inizden: `https://github.com/OWNER/REPO` → `REPO` kısmı.
+
+#### `CLIENT_EMAIL` — Admin Paneli Giriş E-postası
+
+**Ne işe yarıyor?** `/login` sayfasındaki giriş formunda kullanılır. Bu e-posta ile giriş yapan kişi `/keystatic` admin paneline yönlendirilir.
+
+**Nasıl belirlenir?** Müşteriye vereceğiniz herhangi bir e-posta adresi. Gerçek bir e-posta hesabıyla ilişkili olmak zorunda değil, sadece giriş bilgisi olarak kullanılır.
+
+#### `CLIENT_PASSWORD` — Admin Paneli Giriş Şifresi
+
+**Ne işe yarıyor?** `/login` sayfasındaki giriş formunda e-posta ile birlikte doğrulanır.
+
+**Nasıl belirlenir?** Güçlü bir şifre belirleyin ve müşteriye iletin. Şifreler düz metin olarak karşılaştırılır (hashlenmiyor), bu nedenle Cloudflare Dashboard'da `Encrypt` seçeneği ile saklayın.
+
+#### `COOKIE_SECRET` — Session Cookie İmzalama Anahtarı
+
+**Ne işe yarıyor?** Giriş başarılı olduğunda oluşturulan session cookie'sini HMAC-SHA256 ile imzalar. Bu sayede cookie'nin sahte olup olmadığı doğrulanır. Middleware (`middleware.ts`) her `/keystatic` isteğinde bu imzayı kontrol eder.
+
+**Nasıl üretilir?** Terminalde:
+```bash
+openssl rand -base64 32
+```
+
+> **Önemli:** Her müşteri sitesi için **ayrı** bir COOKIE_SECRET üretin. Aynı anahtarı birden fazla sitede kullanmayın.
 
 ### Tanımlama Yerleri
 
