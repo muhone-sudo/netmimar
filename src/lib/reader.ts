@@ -1,28 +1,16 @@
 import { createReader } from '@keystatic/core/reader';
-import { createGitHubReader } from '@keystatic/core/reader/github';
 import keystaticConfig from '../../keystatic.config';
 
 /**
- * Keystatic Reader Factory
+ * Keystatic Reader — Build-time lokal dosya okuyucu
  * 
- * Development: Local filesystem reader (dosyaları diskten okur)
- * Production:  GitHub API reader (dosyaları GitHub'dan okur)
+ * Tüm içerik sayfaları prerender edildiği için reader sadece
+ * build sırasında çalışır. Build ortamında (Cloudflare Pages dahil)
+ * repo klonlanmış durumda olduğundan dosyalar lokalde mevcuttur.
  * 
- * Cloudflare Workers'da filesystem olmadığı için production'da
- * GitHub reader kullanılması zorunludur.
- * 
- * @param token - GITHUB_TOKEN (Astro.locals.runtime?.env?.GITHUB_TOKEN)
+ * Akış: Keystatic → GitHub push → CF Pages build tetiklenir →
+ *       Build sırasında bu reader ile içerik okunur → Statik HTML üretilir
  */
-export function getReader(token?: string) {
-    if (import.meta.env.DEV) {
-        return createReader(process.cwd(), keystaticConfig);
-    }
-
-    const owner = import.meta.env.PUBLIC_REPO_OWNER || 'muhone-sudo';
-    const name = import.meta.env.PUBLIC_REPO_NAME || 'netmimar';
-
-    return createGitHubReader(keystaticConfig, {
-        repo: `${owner}/${name}`,
-        token,
-    });
+export function getReader() {
+    return createReader(process.cwd(), keystaticConfig);
 }

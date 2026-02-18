@@ -1,48 +1,19 @@
 import { defineMiddleware } from 'astro:middleware';
 
 /**
- * Cloudflare Workers fetch patch
+ * Cloudflare Workers fetch patch (minimal)
  * 
- * Keystatic'in GitHub reader'ı:
- * 1) fetch({ cache: 'no-store' }) kullanıyor — CF Workers bunu desteklemiyor
- * 2) User-Agent header'ı eklemiyor — GitHub API 403 döndürüyor
- * 3) Her sayfa yüklemesinde çok sayıda GitHub API isteği yapılıyor — yavaş
- * 
- * Bu patch:
- * - 'cache' alanını siler (CF Workers uyumluluğu)
- * - User-Agent header'ı ekler (GitHub API zorunluluğu)
- * - GitHub API isteklerini Cloudflare edge'de 60sn cache'ler (performans)
+ * CF Workers 'cache' alanını desteklemiyor. Keystatic admin panelinin
+ * dahili fetch çağrıları bu alanı kullanabilir. Güvenlik için siliyoruz.
  */
 if (!(globalThis as any).__fetchPatched) {
     const _originalFetch = globalThis.fetch;
     globalThis.fetch = function patchedFetch(input: any, init?: any) {
-        const url = typeof input === 'string' ? input : input?.url || '';
-        const isGitHubApi = url.includes('api.github.com');
-
-        if (init) {
+        if (init?.cache) {
             const { cache: _cache, ...rest } = init;
-            const headers = new Headers(rest.headers || {});
-            if (!headers.has('User-Agent')) {
-                headers.set('User-Agent', 'netmimar-keystatic');
-            }
-            // GitHub API yanıtlarını Cloudflare edge'de 60sn cache'le
-            if (isGitHubApi) {
-                return _originalFetch(input, {
-                    ...rest,
-                    headers,
-                    cf: { cacheTtl: 60, cacheEverything: true },
-                } as any);
-            }
-            return _originalFetch(input, { ...rest, headers });
+            return _originalFetch(input, rest);
         }
-
-        if (isGitHubApi) {
-            return _originalFetch(input, {
-                headers: { 'User-Agent': 'netmimar-keystatic' },
-                cf: { cacheTtl: 60, cacheEverything: true },
-            } as any);
-        }
-        return _originalFetch(input);
+        return _originalFetch(input, init);
     };
     (globalThis as any).__fetchPatched = true;
 }

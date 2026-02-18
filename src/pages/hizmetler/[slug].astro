@@ -1,23 +1,23 @@
 ---
+export const prerender = true;
+
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getReader } from "../../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
-const { slug } = Astro.params;
-let service: any = null;
-let content: any = null;
-try {
-    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-    service = slug ? await reader.collections.services.read(slug) : null;
-    if (service) {
-        content = await service.content();
-    }
-} catch (e) {
-    console.error("Service read error:", e);
+export async function getStaticPaths() {
+    const reader = getReader();
+    const services = await reader.collections.services.all();
+    return services.map((s) => ({ params: { slug: s.slug } }));
 }
+
+const { slug } = Astro.params;
+const reader = getReader();
+const service = await reader.collections.services.read(slug!);
 if (!service) {
     return Astro.redirect("/hizmetler");
 }
+const content = await service.content();
 ---
 
 <BaseLayout title={`${service.title} — Hizmetler`}>

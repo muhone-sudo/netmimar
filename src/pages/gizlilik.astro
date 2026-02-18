@@ -1,11 +1,13 @@
 ---
+export const prerender = true;
+
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getReader } from "../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
 let privacyContent: any = null;
 try {
-    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    const reader = getReader();
     const settings = await reader.singletons.settings.read();
     if (settings) {
         privacyContent = await settings.privacyPolicy();

@@ -1,23 +1,23 @@
 ---
+export const prerender = true;
+
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getReader } from "../../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
-const { slug } = Astro.params;
-let post: any = null;
-let content: any = null;
-try {
-    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-    post = slug ? await reader.collections.blog.read(slug) : null;
-    if (post) {
-        content = await post.body();
-    }
-} catch (e) {
-    console.error("Blog post read error:", e);
+export async function getStaticPaths() {
+    const reader = getReader();
+    const posts = await reader.collections.blog.all();
+    return posts.map((p) => ({ params: { slug: p.slug } }));
 }
+
+const { slug } = Astro.params;
+const reader = getReader();
+const post = await reader.collections.blog.read(slug!);
 if (!post) {
     return Astro.redirect("/blog");
 }
+const content = await post.body();
 ---
 
 <BaseLayout title={`${post.title} — Blog`}>

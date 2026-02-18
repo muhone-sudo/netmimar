@@ -11,7 +11,7 @@ interface Props {
 // CMS'den site ayarlarını oku
 let settings: any = null;
 try {
-  const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+  const reader = getReader();
   settings = await reader.singletons.settings.read();
 } catch (e) {
   console.warn("Settings read warning:", e);

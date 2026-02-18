@@ -1,23 +1,23 @@
 ---
+export const prerender = true;
+
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getReader } from "../../lib/reader";
 import { DocumentRenderer } from "@keystatic/core/renderer";
 
-const { slug } = Astro.params;
-let project: any = null;
-let content: any = null;
-try {
-    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
-    project = slug ? await reader.collections.projects.read(slug) : null;
-    if (project) {
-        content = await project.description();
-    }
-} catch (e) {
-    console.error("Project read error:", e);
+export async function getStaticPaths() {
+    const reader = getReader();
+    const projects = await reader.collections.projects.all();
+    return projects.map((p) => ({ params: { slug: p.slug } }));
 }
+
+const { slug } = Astro.params;
+const reader = getReader();
+const project = await reader.collections.projects.read(slug!);
 if (!project) {
     return Astro.redirect("/projeler");
 }
+const content = await project.description();
 ---
 
 <BaseLayout title={`${project.projectName} — Projeler`}>

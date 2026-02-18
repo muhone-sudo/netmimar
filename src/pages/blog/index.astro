@@ -1,10 +1,12 @@
 ---
+export const prerender = true;
+
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getReader } from "../../lib/reader";
 
 let posts: any[] = [];
 try {
-    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    const reader = getReader();
     const blogRaw = await reader.collections.blog.all();
     posts = blogRaw
         .map((b) => ({ slug: b.slug, ...b.entry }))

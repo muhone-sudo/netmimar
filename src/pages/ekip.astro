@@ -1,10 +1,12 @@
 ---
+export const prerender = true;
+
 import BaseLayout from "../layouts/BaseLayout.astro";
 import { getReader } from "../lib/reader";
 
 let members: any[] = [];
 try {
-    const reader = getReader(Astro.locals.runtime?.env?.GITHUB_TOKEN);
+    const reader = getReader();
     const teamRaw = await reader.collections.team.all();
     members = teamRaw
         .map((t) => ({ slug: t.slug, ...t.entry }))
