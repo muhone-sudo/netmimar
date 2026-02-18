@@ -3,6 +3,26 @@ import { createGitHubReader } from '@keystatic/core/reader/github';
 import keystaticConfig from '../../keystatic.config';
 
 /**
+ * Cloudflare Workers fetch patch
+ * 
+ * Keystatic'in GitHub reader'ı fetch({ cache: 'no-store' }) kullanıyor.
+ * Cloudflare Workers 'cache' alanını desteklemiyor ve hata fırlatıyor:
+ * "The 'cache' field on 'RequestInitializerDict' is not implemented."
+ * 
+ * Bu patch global fetch'i sarmalayarak 'cache' alanını otomatik siler.
+ */
+if (!import.meta.env.DEV) {
+    const _originalFetch = globalThis.fetch;
+    globalThis.fetch = function patchedFetch(input: any, init?: any) {
+        if (init) {
+            const { cache: _cache, ...rest } = init;
+            return _originalFetch(input, rest);
+        }
+        return _originalFetch(input);
+    };
+}
+
+/**
  * Keystatic Reader Factory
  * 
  * Development: Local filesystem reader (dosyaları diskten okur)
