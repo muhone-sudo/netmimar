@@ -1,6 +1,5 @@
 import type { APIRoute } from 'astro';
-import { createGitHubReader } from '@keystatic/core/reader/github';
-import keystaticConfig from '../../../keystatic.config';
+import { getReader } from '../../lib/reader';
 
 /**
  * DEBUG ENDPOINT — Geçici, production'da silinecek
@@ -22,6 +21,7 @@ export const GET: APIRoute = async (context) => {
         isDev: import.meta.env.DEV,
         publicRepoOwner: import.meta.env.PUBLIC_REPO_OWNER || '(fallback)',
         publicRepoName: import.meta.env.PUBLIC_REPO_NAME || '(fallback)',
+        fetchPatched: !!(globalThis as any).__fetchPatched,
     };
 
     // Test 1: GitHub API direct
@@ -48,9 +48,9 @@ export const GET: APIRoute = async (context) => {
         debug.githubApiError = e.message;
     }
 
-    // Test 2: createGitHubReader
+    // Test 2: getReader (uses patched fetch via middleware)
     try {
-        const reader = createGitHubReader(keystaticConfig, { repo, token });
+        const reader = getReader(token);
         debug.readerCreated = true;
 
         // Read settings

@@ -1,6 +1,32 @@
 import { defineMiddleware } from 'astro:middleware';
 
 /**
+ * Cloudflare Workers fetch patch
+ * 
+ * Keystatic'in GitHub reader'ı:
+ * 1) fetch({ cache: 'no-store' }) kullanıyor — CF Workers bunu desteklemiyor
+ * 2) User-Agent header'ı eklemiyor — GitHub API 403 döndürüyor
+ * 
+ * Middleware her request'ten önce çalıştığı için patch burada uygulanır.
+ * Birden fazla uygulanmaması için flag kontrolü var.
+ */
+if (!(globalThis as any).__fetchPatched) {
+    const _originalFetch = globalThis.fetch;
+    globalThis.fetch = function patchedFetch(input: any, init?: any) {
+        if (init) {
+            const { cache: _cache, ...rest } = init;
+            const headers = new Headers(rest.headers || {});
+            if (!headers.has('User-Agent')) {
+                headers.set('User-Agent', 'netmimar-keystatic');
+            }
+            return _originalFetch(input, { ...rest, headers });
+        }
+        return _originalFetch(input);
+    };
+    (globalThis as any).__fetchPatched = true;
+}
+
+/**
  * NetMimar Auth Middleware
  * /keystatic ve /api/keystatic yollarını korur.
  * Geçerli session cookie'si olmayan istekleri /login'e yönlendirir.

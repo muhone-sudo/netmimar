@@ -3,31 +3,6 @@ import { createGitHubReader } from '@keystatic/core/reader/github';
 import keystaticConfig from '../../keystatic.config';
 
 /**
- * Cloudflare Workers fetch patch
- * 
- * Keystatic'in GitHub reader'ı:
- * 1) fetch({ cache: 'no-store' }) kullanıyor — CF Workers bunu desteklemiyor
- * 2) User-Agent header'ı eklemiyor — GitHub API 403 döndürüyor
- * 
- * Bu patch global fetch'i sarmalayarak her iki sorunu da çözer.
- */
-if (!import.meta.env.DEV) {
-    const _originalFetch = globalThis.fetch;
-    globalThis.fetch = function patchedFetch(input: any, init?: any) {
-        if (init) {
-            const { cache: _cache, ...rest } = init;
-            // GitHub API isteklerinde User-Agent zorunlu
-            const headers = new Headers(rest.headers || {});
-            if (!headers.has('User-Agent')) {
-                headers.set('User-Agent', 'netmimar-keystatic');
-            }
-            return _originalFetch(input, { ...rest, headers });
-        }
-        return _originalFetch(input);
-    };
-}
-
-/**
  * Keystatic Reader Factory
  * 
  * Development: Local filesystem reader (dosyaları diskten okur)
