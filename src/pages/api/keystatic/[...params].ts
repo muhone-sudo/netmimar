@@ -36,7 +36,7 @@ const handler: APIRoute = async (context) => {
             path: '/',
             maxAge: 60 * 60 * 24,
         });
-        return context.redirect('/keystatic', 302);
+        return context.redirect('/admin', 302);
     }
 
     // github/refresh-token — Keystatic token yenilemek istediğinde gelir.
@@ -58,11 +58,11 @@ const handler: APIRoute = async (context) => {
     // github/logout — Keystatic çıkışı
     if (params === 'github/logout') {
         context.cookies.delete('keystatic-gh-access-token', { path: '/' });
-        return context.redirect('/keystatic', 302);
+        return context.redirect('/admin', 302);
     }
 
     // github/repo-not-found — Repo bulunamadı hatası
-    // Sonsuz döngüyü önlemek için /keystatic'e değil, hata mesajı döndür
+    // Sonsuz döngüyü önlemek için /admin'e değil, hata mesajı döndür
     if (params === 'github/repo-not-found') {
         return new Response(
             `<html><body style="font-family:sans-serif;display:flex;justify-content:center;align-items:center;height:100vh;margin:0;background:#f8fafc;">
@@ -74,7 +74,7 @@ const handler: APIRoute = async (context) => {
                     <li><code>GITHUB_TOKEN</code> bu repoya erişim iznine sahip mi?</li>
                     <li>Repo private ise token'da <code>contents: read & write</code> izni var mı?</li>
                 </ul>
-                <a href="/keystatic" style="display:inline-block;margin-top:1rem;padding:0.5rem 1rem;background:#3b82f6;color:white;border-radius:0.5rem;text-decoration:none;">Tekrar Dene</a>
+                <a href="/admin" style="display:inline-block;margin-top:1rem;padding:0.5rem 1rem;background:#3b82f6;color:white;border-radius:0.5rem;text-decoration:none;">Tekrar Dene</a>
             </div></body></html>`,
             {
                 status: 200,

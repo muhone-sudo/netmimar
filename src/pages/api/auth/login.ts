@@ -90,7 +90,7 @@ export const POST: APIRoute = async (context) => {
         });
 
         // Keystatic paneline yönlendir
-        return context.redirect('/keystatic', 302);
+        return context.redirect('/admin', 302);
     } catch (error) {
         console.error('Login error:', error);
         return context.redirect('/login?error=1', 302);
