@@ -89,8 +89,8 @@ export const POST: APIRoute = async (context) => {
             maxAge: 60 * 60 * 24, // 24 saat
         });
 
-        // Yönetim hub sayfasına yönlendir
-        return context.redirect('/admin', 302);
+        // Keystatic paneline yönlendir
+        return context.redirect('/keystatic', 302);
     } catch (error) {
         console.error('Login error:', error);
         return context.redirect('/login?error=1', 302);

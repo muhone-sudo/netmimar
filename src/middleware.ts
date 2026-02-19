@@ -27,7 +27,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const { pathname } = context.url;
 
     // Korunan yollar
-    const protectedPaths = ['/keystatic', '/api/keystatic', '/admin', '/api/import'];
+    const protectedPaths = ['/keystatic', '/api/keystatic', '/toplu', '/api/import'];
     const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
 
     if (!isProtected) {
