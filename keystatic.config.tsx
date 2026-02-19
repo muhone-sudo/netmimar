@@ -1,4 +1,64 @@
 import { config, fields, collection, singleton } from '@keystatic/core';
+import { useEffect } from 'react';
+
+/**
+ * GitHub'a ait UI elemanlarını Keystatic panelinden gizleyen bileşen.
+ * - Branch picker + git menü (sidebar)
+ * - "View on GitHub" linkleri
+ * - Kullanıcı adı göstergesi ("Hello, muhone-sudo!")
+ * - Dashboard branch bölümü
+ */
+function KeystaticMark() {
+    useEffect(() => {
+        // ── CSS ile gizle ──────────────────────────────────────────────────
+        if (!document.getElementById('nm-ks-hide')) {
+            const s = document.createElement('style');
+            s.id = 'nm-ks-hide';
+            s.textContent = `
+                /* Branch picker + git menü kapsayıcısı */
+                div:has(> [aria-label="git actions"]) { display: none !important; }
+                /* Kullanıcı adı butonu */
+                [aria-label="User menu"] { display: none !important; }
+                /* GitHub.com'a giden tüm linkler (View on GitHub, repo linki vb.) */
+                a[href*="github.com"] { display: none !important; }
+            `;
+            document.head.appendChild(s);
+        }
+
+        // ── MutationObserver ile metin tabanlı gizleme ─────────────────────
+        // (Dashboard "New branch", "Create pull request" vb. butonları)
+        const HIDE_TEXTS = new Set([
+            'New branch', 'Delete branch',
+            'Create pull request', 'Current branch',
+        ]);
+        const hideByText = () => {
+            document.querySelectorAll<HTMLElement>('button, [role="button"]').forEach(el => {
+                const text = el.textContent?.trim() ?? '';
+                if (HIDE_TEXTS.has(text)) {
+                    // Butonu ve varsa caption/wrapper'ını gizle
+                    let target: HTMLElement = el;
+                    const parent = el.closest('[class]');
+                    if (parent instanceof HTMLElement) target = parent;
+                    target.style.setProperty('display', 'none', 'important');
+                }
+            });
+            // "Pull request #N" butonları
+            document.querySelectorAll<HTMLElement>('button, [role="button"]').forEach(el => {
+                if (/^Pull request #\d+$/.test(el.textContent?.trim() ?? '')) {
+                    el.style.setProperty('display', 'none', 'important');
+                }
+            });
+        };
+
+        const observer = new MutationObserver(hideByText);
+        observer.observe(document.body, { childList: true, subtree: true });
+        hideByText(); // ilk çalıştırma
+
+        return () => observer.disconnect();
+    }, []);
+
+    return null;
+}
 
 /**
  * NetMimar Keystatic CMS Konfigürasyonu
@@ -18,7 +78,8 @@ export default config({
 
     ui: {
         brand: {
-            name: 'NetMimar CMS',
+            name: 'Hoşgeldiniz',
+            mark: () => <KeystaticMark />,
         },
         navigation: {
             'Genel': ['settings', 'homepage'],
