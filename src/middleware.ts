@@ -26,12 +26,6 @@ if (!(globalThis as any).__fetchPatched) {
 export const onRequest = defineMiddleware(async (context, next) => {
     const { pathname } = context.url;
 
-    // /admin kısayolu → /keystatic'e yönlendir
-    if (pathname === '/admin' || pathname.startsWith('/admin/')) {
-        const newPath = '/keystatic' + pathname.slice(6); // "/admin".length = 6
-        return context.redirect(newPath || '/keystatic', 302);
-    }
-
     // Korunan yollar
     const protectedPaths = ['/keystatic', '/api/keystatic'];
     const isProtected = protectedPaths.some((p) => pathname.startsWith(p));
