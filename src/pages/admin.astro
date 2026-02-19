@@ -1,0 +1,260 @@
+---
+export const prerender = false;
+
+import '../styles/global.css';
+
+const collections = [
+  {
+    id:       'services',
+    label:    'Hizmetler',
+    icon:     'M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z',
+    template: '/templates/hizmetler-sablon.csv',
+    hint:     'title, slug (opsiyonel), icon, shortDescription, content',
+  },
+  {
+    id:       'projects',
+    label:    'Projeler',
+    icon:     'M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10',
+    template: '/templates/projeler-sablon.csv',
+    hint:     'projectName, slug (opsiyonel), client, date (YYYY-MM-DD), category, description',
+  },
+  {
+    id:       'blog',
+    label:    'Blog',
+    icon:     'M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z',
+    template: '/templates/blog-sablon.csv',
+    hint:     'title, slug (opsiyonel), date, author, category, tags (| ile ayır), body',
+  },
+  {
+    id:       'team',
+    label:    'Ekip',
+    icon:     'M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z',
+    template: '/templates/ekip-sablon.csv',
+    hint:     'name, slug (opsiyonel), role, order, socialLinkedin, socialTwitter, socialInstagram, socialEmail',
+  },
+];
+---
+<!DOCTYPE html>
+<html lang="tr" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Yönetim Paneli — NetMimar</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    body { font-family: 'Inter', sans-serif; }
+    .card { background: rgba(30,41,59,0.8); backdrop-filter: blur(20px); border: 1px solid rgba(148,163,184,0.1); }
+    .spinner { border: 3px solid rgba(255,255,255,0.1); border-top-color: #3b82f6; border-radius: 50%;
+               width: 18px; height: 18px; animation: spin 0.7s linear infinite;
+               display: inline-block; vertical-align: middle; margin-right: 6px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .badge-ok  { background: rgba(34,197,94,0.12); border: 1px solid rgba(34,197,94,0.25);  color: #86efac; }
+    .badge-err { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.25);  color: #fca5a5; }
+    .drop-zone { border: 2px dashed rgba(148,163,184,0.2); transition: border-color .2s; }
+    .drop-zone:hover, .drop-zone.drag-over { border-color: rgba(96,165,250,0.5); background: rgba(96,165,250,0.04); }
+  </style>
+</head>
+<body class="min-h-full" style="background: linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%);">
+
+  <!-- Üst bar -->
+  <header style="border-bottom: 1px solid rgba(148,163,184,0.1); background: rgba(15,23,42,0.7);">
+    <div class="max-w-5xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-xl flex items-center justify-center"
+             style="background: linear-gradient(135deg, #3b82f6, #60a5fa);">
+          <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+              d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+          </svg>
+        </div>
+        <div>
+          <span class="font-bold text-white text-sm">NetMimar</span>
+          <span class="text-xs ml-2" style="color:#64748b;">Yönetim Paneli</span>
+        </div>
+      </div>
+      <a href="/api/auth/logout"
+         class="text-xs px-3 py-1.5 rounded-lg"
+         style="color:#94a3b8; border:1px solid rgba(148,163,184,0.15);"
+         onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#94a3b8'">
+        Çıkış
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-5xl mx-auto px-6 py-10 space-y-8">
+
+    <!-- İçerik yönetimi kartı -->
+    <div class="card rounded-2xl p-6 flex items-start justify-between gap-6">
+      <div>
+        <h2 class="text-base font-semibold text-white mb-1">İçerik Yönetimi</h2>
+        <p class="text-sm" style="color:#94a3b8;">
+          Hizmetler, projeler, blog yazıları ve ekip üyelerini tek tek düzenlemek için Keystatic panelini kullanın.
+        </p>
+      </div>
+      <a href="/keystatic"
+         class="shrink-0 flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white"
+         style="background: linear-gradient(135deg, #3b82f6, #2563eb);"
+         onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+        </svg>
+        Keystatic'i Aç
+      </a>
+    </div>
+
+    <!-- Toplu aktarım başlığı -->
+    <div>
+      <h1 class="text-lg font-bold text-white mb-1">Toplu İçerik Aktarımı</h1>
+      <p class="text-sm" style="color:#64748b;">
+        Şablon CSV'yi indirin → Excel / Google Sheets ile doldurun → geri yükleyin.
+        Slug sütununu boş bırakırsanız başlıktan otomatik üretilir.
+      </p>
+    </div>
+
+    <!-- Koleksiyon kartları: 2 sütun grid -->
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {collections.map(col => (
+        <div class="card rounded-2xl p-6 flex flex-col gap-5" id={`card-${col.id}`}>
+
+          <!-- Başlık + şablon indirme -->
+          <div class="flex items-start justify-between gap-3">
+            <div class="flex items-center gap-3">
+              <div class="w-9 h-9 shrink-0 rounded-xl flex items-center justify-center"
+                   style="background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2);">
+                <svg class="w-4.5 h-4.5" style="width:18px;height:18px;color:#60a5fa"
+                     fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d={col.icon} />
+                </svg>
+              </div>
+              <div>
+                <h3 class="text-sm font-semibold text-white">{col.label}</h3>
+                <p class="text-xs mt-0.5" style="color:#475569;">{col.hint}</p>
+              </div>
+            </div>
+            <a href={col.template} download
+               title="Boş şablonu indir"
+               class="shrink-0 flex items-center gap-1 text-xs px-3 py-1.5 rounded-lg transition"
+               style="color:#60a5fa; border:1px solid rgba(96,165,250,0.25); white-space:nowrap;"
+               onmouseover="this.style.background='rgba(96,165,250,0.08)'"
+               onmouseout="this.style.background='transparent'">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Şablon
+            </a>
+          </div>
+
+          <!-- Yükleme formu -->
+          <form class="import-form flex flex-col gap-3" data-collection={col.id}>
+            <label class="drop-zone rounded-xl p-5 flex flex-col items-center justify-center cursor-pointer text-center">
+              <svg class="w-7 h-7 mb-2" style="color:#334155" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                  d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+              </svg>
+              <span class="text-xs" style="color:#64748b;">CSV sürükleyin veya tıklayın</span>
+              <span class="file-name text-xs mt-1 hidden" style="color:#60a5fa;"></span>
+              <input type="file" accept=".csv,text/csv" class="sr-only" />
+            </label>
+
+            <button type="submit"
+                    class="w-full py-2.5 rounded-xl text-sm font-semibold text-white transition"
+                    style="background: linear-gradient(135deg, #3b82f6, #2563eb);"
+                    onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+              Aktar
+            </button>
+          </form>
+
+          <!-- Sonuç -->
+          <div class="result-area hidden space-y-1.5"></div>
+        </div>
+      ))}
+    </div>
+  </main>
+
+  <script>
+    // Drag & drop vurgulama
+    document.querySelectorAll('.drop-zone').forEach(zone => {
+      zone.addEventListener('dragover',  (e) => { e.preventDefault(); zone.classList.add('drag-over'); });
+      zone.addEventListener('dragleave', ()  => zone.classList.remove('drag-over'));
+      zone.addEventListener('drop',      (e: any) => {
+        e.preventDefault(); zone.classList.remove('drag-over');
+        const input = zone.querySelector('input[type="file"]') as HTMLInputElement;
+        if (e.dataTransfer.files.length) {
+          const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]);
+          input.files = dt.files; input.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+      });
+    });
+
+    document.querySelectorAll('.import-form').forEach((form) => {
+      const fileInput  = form.querySelector('input[type="file"]') as HTMLInputElement;
+      const fileNameEl = form.querySelector('.file-name') as HTMLElement;
+      const card       = form.closest('[id^="card-"]') as HTMLElement;
+      const resultArea = card.querySelector('.result-area') as HTMLElement;
+      const submit     = form.querySelector('button[type="submit"]') as HTMLButtonElement;
+      const collection = (form as HTMLElement).dataset.collection!;
+
+      fileInput.addEventListener('change', () => {
+        const name = fileInput.files?.[0]?.name;
+        fileNameEl.textContent = name ?? '';
+        fileNameEl.classList.toggle('hidden', !name);
+      });
+
+      form.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const file = fileInput.files?.[0];
+        if (!file) { alert('Lütfen bir CSV seçin.'); return; }
+
+        submit.disabled = true;
+        submit.innerHTML = '<span class="spinner"></span>Aktarılıyor…';
+        resultArea.innerHTML = ''; resultArea.classList.add('hidden');
+
+        const fd = new FormData();
+        fd.append('collection', collection);
+        fd.append('file', file);
+
+        try {
+          const res  = await fetch('/api/import', { method: 'POST', body: fd });
+          const data = await res.json() as any;
+          resultArea.classList.remove('hidden');
+
+          if (!res.ok || data.error) {
+            resultArea.innerHTML = `<div class="badge-err rounded-lg px-3 py-2.5 text-xs">${data.error || 'Sunucu hatası'}</div>`;
+            return;
+          }
+
+          const results: Array<{ row: string; ok: boolean; status: string }> = data.results;
+          const ok = results.filter(r => r.ok).length;
+
+          const summary = document.createElement('p');
+          summary.className = 'text-xs mb-1';
+          summary.style.color = '#64748b';
+          summary.textContent = `${results.length} satır — ${ok} başarılı, ${results.length - ok} hatalı`;
+          resultArea.appendChild(summary);
+
+          results.forEach(r => {
+            const el = document.createElement('div');
+            el.className = `rounded-lg px-3 py-2 text-xs flex justify-between gap-3 ${r.ok ? 'badge-ok' : 'badge-err'}`;
+            el.innerHTML = `<span class="truncate">${r.row}</span><span class="shrink-0">${r.status}</span>`;
+            resultArea.appendChild(el);
+          });
+        } catch {
+          resultArea.classList.remove('hidden');
+          resultArea.innerHTML = '<div class="badge-err rounded-lg px-3 py-2.5 text-xs">Ağ hatası — tekrar deneyin.</div>';
+        } finally {
+          submit.disabled = false;
+          submit.textContent = 'Aktar';
+          fileInput.value = '';
+          fileNameEl.classList.add('hidden');
+        }
+      });
+    });
+  </script>
+</body>
+</html>

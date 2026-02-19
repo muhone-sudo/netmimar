@@ -1,2 +1,0 @@
-/admin /keystatic 302
-/admin/* /keystatic/:splat 302
