@@ -393,6 +393,7 @@ const content = await service.content();
 | `/kvkk` | `pages/kvkk.astro` | **Prerender** | settings (kvkkText document) | KVKK aydınlatma metni |
 | `/gizlilik` | `pages/gizlilik.astro` | **Prerender** | settings (privacyPolicy document) | Gizlilik politikası |
 | `/login` | `pages/login.astro` | **Prerender** | — | Giriş formu (noindex) |
+| `/admin` | Middleware redirect | **SSR** | — | `/keystatic`'e yönlendirir (kısayol) |
 | `/keystatic` | Keystatic UI (otomatik) | **SSR** | — | Admin paneli (korumalı, runtime) |
 
 > **Prerender** = Build sırasında statik HTML üretilir, CDN'den servis edilir, süper hızlı.
