@@ -12,19 +12,23 @@ export const POST: APIRoute = async (context) => {
         const contentType = context.request.headers.get('content-type') || '';
         let email: string | null = null;
         let password: string | null = null;
+        let nextPath: string | null = null;
 
         if (contentType.includes('application/x-www-form-urlencoded') || contentType.includes('multipart/form-data')) {
             const formData = await context.request.formData();
             email = formData.get('email') as string;
             password = formData.get('password') as string;
+            nextPath = formData.get('next') as string | null;
         } else {
             const body = await context.request.json();
             email = body.email;
             password = body.password;
+            nextPath = body.next ?? null;
         }
 
         if (!email || !password) {
-            return context.redirect('/login?error=1', 302);
+            const q = nextPath ? `?error=1&next=${encodeURIComponent(nextPath)}` : '?error=1';
+            return context.redirect(`/login${q}`, 302);
         }
 
         // Credential doğrulama
@@ -32,7 +36,8 @@ export const POST: APIRoute = async (context) => {
         const validPassword = env.CLIENT_PASSWORD;
 
         if (email !== validEmail || password !== validPassword) {
-            return context.redirect('/login?error=1', 302);
+            const q = nextPath ? `?error=1&next=${encodeURIComponent(nextPath)}` : '?error=1';
+            return context.redirect(`/login${q}`, 302);
         }
 
         // Session cookie oluştur (24 saat geçerli)
@@ -89,8 +94,9 @@ export const POST: APIRoute = async (context) => {
             maxAge: 60 * 60 * 24, // 24 saat
         });
 
-        // Keystatic paneline yönlendir
-        return context.redirect('/keystatic', 302);
+        // Giriş sonrası yönlendirme: next parametresi varsa oraya, yoksa /keystatic
+        const redirectTo = (nextPath && nextPath.startsWith('/') && !nextPath.startsWith('//')) ? nextPath : '/keystatic';
+        return context.redirect(redirectTo, 302);
     } catch (error) {
         console.error('Login error:', error);
         return context.redirect('/login?error=1', 302);

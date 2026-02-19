@@ -38,7 +38,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
     const sessionCookie = context.cookies.get('netmimar_session')?.value;
 
     if (!sessionCookie) {
-        return context.redirect('/login', 302);
+        // API isteklerinde next parametresi taşıma
+        const next = pathname.startsWith('/api/') ? '' : `?next=${encodeURIComponent(pathname)}`;
+        return context.redirect(`/login${next}`, 302);
     }
 
     // Cookie imzasını doğrula
@@ -85,9 +87,9 @@ export const onRequest = defineMiddleware(async (context, next) => {
         // Cookie süresi kontrolü
         const data = JSON.parse(atob(payload));
         if (data.exp && Date.now() > data.exp) {
-            // Süresi dolmuş cookie'yi temizle
             context.cookies.delete('netmimar_session', { path: '/' });
-            return context.redirect('/login', 302);
+            const next = pathname.startsWith('/api/') ? '' : `?next=${encodeURIComponent(pathname)}`;
+            return context.redirect(`/login${next}`, 302);
         }
     } catch {
         return context.redirect('/login', 302);

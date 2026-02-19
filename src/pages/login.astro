@@ -1,7 +1,10 @@
 ---
-export const prerender = true;
+export const prerender = false;
 
 import '../styles/global.css';
+
+const next = Astro.url.searchParams.get('next') ?? '';
+const isToplu = next === '/toplu';
 ---
 <!DOCTYPE html>
 <html lang="tr" class="h-full">
@@ -42,7 +45,15 @@ import '../styles/global.css';
           </div>
         )}
 
+        {isToplu && (
+          <div class="mb-6 p-3 rounded-lg text-sm text-center"
+               style="background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); color: #93c5fd;">
+            Giriş yaptıktan sonra toplu yükleme sayfasına yönlendirileceksiniz.
+          </div>
+        )}
+
         <form method="POST" action="/api/auth/login" class="space-y-5">
+          {next && <input type="hidden" name="next" value={next} />}
           <!-- Email -->
           <div>
             <label for="email" class="block text-sm font-medium mb-2" style="color: #cbd5e1;">
