@@ -43,7 +43,7 @@ Bu proje bir **white-label ajans web sitesi iskeleti**dir. Amaç:
 admin-base-site-structure/
 │
 ├── astro.config.mjs          # Astro framework konfigürasyonu
-├── keystatic.config.ts        # CMS şeması — TÜM içerik alanları burada tanımlı
+├── keystatic.config.tsx       # CMS şeması — TÜM içerik alanları burada tanımlı (.tsx — JSX gerektirir)
 ├── wrangler.toml              # Cloudflare Workers/Pages konfigürasyonu
 ├── schema.sql                 # D1 veritabanı şeması (iletişim formu)
 ├── package.json               # Bağımlılıklar ve script'ler
@@ -52,8 +52,14 @@ admin-base-site-structure/
 ├── .env                       # Gerçek ortam değişkenleri (GIT'E EKLENMEMELİ)
 │
 ├── public/                    # Statik dosyalar (doğrudan serve edilir)
+│   ├── _redirects             # Cloudflare Pages yönlendirme kuralları (/admin → /keystatic)
 │   ├── favicon.ico
 │   ├── favicon.svg
+│   ├── templates/             # İndirilebilir boş CSV şablonları (toplu içerik aktarımı için)
+│   │   ├── hizmetler-sablon.csv
+│   │   ├── projeler-sablon.csv
+│   │   ├── blog-sablon.csv
+│   │   └── ekip-sablon.csv
 │   └── images/                # CMS tarafından yüklenen görseller
 │       ├── brand/             # Logo ve favicon
 │       ├── hero/              # Ana sayfa hero görselleri
@@ -66,7 +72,7 @@ admin-base-site-structure/
 └── src/
     ├── env.d.ts               # TypeScript type tanımları (CloudflareEnv)
     ├── content.config.ts      # Astro Content Collections şeması
-    ├── middleware.ts           # Fetch patch + Auth middleware — /keystatic yollarını korur
+    ├── middleware.ts           # Fetch patch + Auth middleware — /keystatic, /toplu, /api/import yollarını korur
     ├── lib/
     │   └── reader.ts          # getReader() helper — CMS verilerini okuyan fonksiyon
     ├── styles/
@@ -115,7 +121,7 @@ admin-base-site-structure/
 
 ## 4. CMS Yapısı (Keystatic)
 
-Tüm CMS şeması `keystatic.config.ts` dosyasında tanımlıdır. İki tür veri yapısı vardır:
+Tüm CMS şeması `keystatic.config.tsx` dosyasında tanımlıdır. İki tür veri yapısı vardır:
 
 ### 4.1. Singleton'lar (Tekil Veriler)
 
@@ -275,7 +281,8 @@ Bu site **JAMstack mimarisi** kullanır. İçerik sayfaları (ana sayfa, blog, h
 | `/blog`, `/blog/[slug]` | **Prerender** (statik) | Build sırasında |
 | `/ekip` | **Prerender** (statik) | Build sırasında |
 | `/kvkk`, `/gizlilik` | **Prerender** (statik) | Build sırasında |
-| `/login` | **Prerender** (statik) | Build sırasında |
+| `/login` | **SSR** (runtime) | Her istekte (`?next=` parametresini okur) |
+| `/toplu` | **SSR** (runtime) | Her istekte (korumalı, oturum gerektirir) |
 | `/keystatic/*` | **SSR** (runtime) | Her ziyarette |
 | `/api/*` | **SSR** (runtime) | Her istekte |
 
@@ -323,7 +330,7 @@ const content = await post.body(); // veya service.content(), project.descriptio
 </div>
 ```
 
-> **Dikkat:** `content()`, `body()`, `description()` gibi metotlar **async**'tir ve `await` gerektirir. Bunlar `keystatic.config.ts`'de `fields.document()` olarak tanımlanan alanlardan gelir.
+> **Dikkat:** `content()`, `body()`, `description()` gibi metotlar **async**'tir ve `await` gerektirir. Bunlar `keystatic.config.tsx`'de `fields.document()` olarak tanımlanan alanlardan gelir.
 
 ### Bir Sayfa Nasıl Yapılandırılır? (Kalıp)
 
@@ -392,8 +399,9 @@ const content = await service.content();
 | `/ekip` | `pages/ekip.astro` | **Prerender** | team (all, order'a göre sıralı) | Ekip listesi |
 | `/kvkk` | `pages/kvkk.astro` | **Prerender** | settings (kvkkText document) | KVKK aydınlatma metni |
 | `/gizlilik` | `pages/gizlilik.astro` | **Prerender** | settings (privacyPolicy document) | Gizlilik politikası |
-| `/login` | `pages/login.astro` | **Prerender** | — | Giriş formu (noindex) |
-| `/admin` | Middleware redirect | **SSR** | — | `/keystatic`'e yönlendirir (kısayol) |
+| `/login` | `pages/login.astro` | **SSR** | — | Giriş formu (noindex) — `?next=` parametresini runtime'da okur |
+| `/admin` | `public/_redirects` | **Edge redirect** | — | Cloudflare edge'de `/keystatic`'e 302 yönlendirir (kısayol) |
+| `/toplu` | `pages/toplu.astro` | **SSR** | — | Toplu CSV içerik aktarım sayfası (korumalı, sadece admin kullanımı) |
 | `/keystatic` | Keystatic UI (otomatik) | **SSR** | — | Admin paneli (korumalı, runtime) |
 
 > **Prerender** = Build sırasında statik HTML üretilir, CDN'den servis edilir, süper hızlı.
@@ -403,9 +411,10 @@ const content = await service.content();
 
 | URL | Metot | Dosya | İşlev |
 |-----|-------|-------|-------|
-| `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, 2 cookie set etme, `/keystatic`'e yönlendirme |
+| `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, 2 cookie set etme, `?next=` destekli yönlendirme |
 | `/api/auth/logout` | GET/POST | `pages/api/auth/logout.ts` | 2 cookie silme, `/login`'e yönlendirme |
 | `/api/contact` | POST | `pages/api/contact.ts` | İletişim formu → D1 veritabanına kayıt |
+| `/api/import` | POST | `pages/api/import.ts` | CSV parse → GitHub API ile toplu içerik dosyası oluşturma/güncelleme |
 | `/api/keystatic/[...params]` | ALL | `pages/api/keystatic/[...params].ts` | GitHub API proxy + internal auth route handler |
 
 ---
@@ -463,8 +472,31 @@ Değer: GITHUB_TOKEN (ortam değişkeninden)
 `middleware.ts` şu yolları korur:
 - `/keystatic` ve altı
 - `/api/keystatic` ve altı
+- `/toplu` — toplu içerik aktarım sayfası
+- `/api/import` — toplu aktarım API endpoint'i
 
 Diğer tüm yollar (ana sayfa, blog, hizmetler vb.) herkese açıktır.
+
+### `/admin` Yönlendirmesi
+
+`public/_redirects` dosyası içinde Cloudflare edge seviyesinde 302 yönlendirme yapılır:
+
+```
+/admin       /keystatic      302
+/admin/*     /keystatic/:splat  302
+```
+
+Bu yönlendirme SSR veya middleware'den **önce** çalışır. Böylece esnafın `/admin` adresini ezberlemesi yeterlidir — Keystatic paneline yönlendirilir.
+
+> **Neden middleware'de değil?** Cloudflare Pages, bilinmeyen bir route'a geldiğinde önce `_redirects` dosyasına bakar. Eğer orada eşleşme yoksa SPA fallback olarak `index.html` döner — middleware hiç devreye girmez. Bu yüzden `/admin` yönlendirmesi `_redirects` ile yapılmalıdır.
+
+### Login `?next=` Parametresi
+
+Middleware, korunan bir sayfaya oturumsuz erişildiğinde `/login?next=/sayfa` şeklinde yönlendirir. Login formu bu değeri gizli alan olarak tutar. Giriş başarılı olduğunda kullanıcı direkt o sayfaya yönlendirilir.
+
+Örnek: `/toplu` adresine girince `/login?next=%2Ftoplu` → giriş yapınca `/toplu`'ya döner.
+
+Giriş başarısız olsa bile hata URL'inde `next` parametresi korunur (örn: `/login?error=1&next=%2Ftoplu`).
 
 ### GitHub API Proxy (/api/keystatic/[...params])
 
@@ -583,7 +615,7 @@ cp .env.example .env
 
 ### Local vs Production Farkı
 
-`keystatic.config.ts` içinde:
+`keystatic.config.tsx` içinde:
 
 ```typescript
 storage:
@@ -594,6 +626,79 @@ storage:
             repo: { owner: ..., name: ... },
           },
 ```
+
+---
+
+## 16. Toplu İçerik Aktarımı (CSV Import)
+
+### Genel Bakış
+
+Admin kullanıcısına (müşteriye değil, siteyi yöneten kişiye) özel bir CSV yükleme sayfası mevcuttur. Bu sayfa `/toplu` adresinde bulunur ve oturum gerektirmektedir.
+
+**Kullanım senaryosu:** Müşteriden içerik listesi Excel/CSV olarak alınır → şablona uygun doldurulur → `/toplu` sayfasından yüklenir → içerikler doğrudan GitHub'a commit edilir.
+
+### Erişim
+
+- **URL:** `/toplu`
+- **Korumalı:** Evet (middleware ile — oturum olmadan `/login?next=/toplu`'ya yönlendirir)
+- **Giriş sonrası:** Direkt `/toplu`'ya döner (`?next=` mekanizması)
+
+### CSV Şablonları
+
+`public/templates/` klasöründe 4 adet indirilebilir şablon bulunur:
+
+| Dosya | Koleksiyon | Alanlar |
+|-------|------------|---------|
+| `hizmetler-sablon.csv` | Hizmetler | `title, slug, icon, shortDescription, content` |
+| `projeler-sablon.csv` | Projeler | `projectName, slug, client, date, category, description` |
+| `blog-sablon.csv` | Blog | `title, slug, date, author, category, tags, body` |
+| `ekip-sablon.csv` | Ekip | `name, slug, role, order, socialLinkedin, socialTwitter, socialInstagram, socialEmail` |
+
+> **Not:** `slug` sütunu boş bırakılabilir — başlık/isimden otomatik üretilir (Türkçe karakter dönüşümü dahil). Blog'daki `tags` sütununda birden fazla etiket `|` ile ayrılır (ör: `web|tasarım|seo`).
+
+### API Endpoint — `/api/import`
+
+**Dosya:** `src/pages/api/import.ts`  
+**Metot:** POST (multipart/form-data)  
+**Alanlar:** `collection` (services/projects/blog/team), `file` (CSV dosyası)
+
+**Akış:**
+1. CSV parse edilir (quoted field + iç satır sonu desteği)
+2. Her satır için koleksiyona uygun dosya içeriği üretilir (`.mdoc` veya `.json`)
+3. Her dosya için GitHub API'ye `GET` isteği atılır — varsa `sha` alınır
+4. `PUT /repos/{owner}/{repo}/contents/{path}` ile dosya oluşturulur veya güncellenir
+5. Sonuçlar (başarılı/hatalı, satır bazında) JSON olarak döner
+
+**Gerekli env değişkenleri:** `GITHUB_TOKEN`, `PUBLIC_REPO_OWNER`, `PUBLIC_REPO_NAME`
+
+> **Önemli:** Bu endpoint her zaman GitHub API kullanır (local'de bile). `wrangler pages dev` ile test ederken gerçek GitHub'a yazılır.
+
+---
+
+## 17. Keystatic UI Özelleştirmeleri
+
+### GitHub Öğelerinin Gizlenmesi
+
+Keystatic admin paneli GitHub modunda çalışırken bazı GitHub'a özgü UI öğeleri gösterir (branch seçici, "View on GitHub" linkleri, kullanıcı adı vb.). Bu öğeler esnafın görmesi gerekmediğinden gizlenmiştir.
+
+**Yöntem:** `keystatic.config.tsx` içinde `ui.brand.mark` React bileşeni kullanılır. Bu bileşen:
+- `useEffect` ile bir `<style>` etiketi enjekte eder (CSS ile gizleme)
+- `MutationObserver` ile dinamik olarak oluşturulan butonları metin bazında gizler
+
+**Gizlenen öğeler:**
+- Sidebar'daki branch picker + git menü (dal değiştirme, yeni dal oluşturma)
+- `[aria-label="User menu"]` — kullanıcı adı/GitHub avatar menüsü
+- `a[href*="github.com"]` — tüm GitHub.com linkleri ("View on GitHub" dahil)
+- "New branch", "Delete branch", "Create pull request" butonları (MutationObserver ile)
+
+**Neden `keystatic.config.tsx`?**  
+Keystatic'in `ui.brand.mark` özelliği bir React bileşeni kabul eder. JSX kullanabilmek için dosya uzantısı `.ts`'ten `.tsx`'e dönüştürülmüştür. `tsconfig.json`'da `"jsx": "react-jsx"` ve `"jsxImportSource": "react"` zaten tanımlıdır.
+
+### Brand İsmi
+
+`ui.brand.name` → `'Hoşgeldiniz'` olarak ayarlanmıştır. Sidebar üst köşesinde görünür.
+
+> **Dikkat:** Keystatic güncellemesi bu CSS sınıf adlarını değiştirebilir. Güncelleme sonrası gizlenen öğelerin hâlâ gizli olduğunu kontrol edin.
 
 - **`development`** (npm run dev): Keystatic dosyaları doğrudan disk üzerinde okur/yazar. GitHub'a gitmez.
 - **`production`** (deploy sonrası): Keystatic, GitHub API üzerinden dosyaları okur/yazar.
@@ -616,7 +721,7 @@ Tüm CMS görselleri `public/images/` altında ayrı klasörlerde saklanır:
 | `public/images/team/` | Ekip fotoğrafları | Team collection |
 | `public/images/testimonials/` | Müşteri fotoğrafları | Homepage testimonials |
 
-**Görseller nasıl eklenir?** Admin panelinden. Keystatic'te bir image alanında dosya yüklendiğinde, `keystatic.config.ts`'teki `directory` ayarına göre otomatik olarak doğru klasöre kaydedilir.
+**Görseller nasıl eklenir?** Admin panelinden. Keystatic'te bir image alanında dosya yüklendiğinde, `keystatic.config.tsx`'teki `directory` ayarına göre otomatik olarak doğru klasöre kaydedilir.
 
 ### Metin İçerikleri
 
@@ -815,12 +920,14 @@ Bu bölüm, siteye yeni tasarım giydirmek isteyen developer için yazılmışt�
 | `src/lib/reader.ts` | CMS okuma köprüsü. Çalışıyor, bozulursa içerik gelmez. |
 | `src/middleware.ts` | Fetch patch + auth. Bozulursa admin paneli çalışmaz. |
 | `astro.config.mjs` | Kritik alias ve sarmalayıcılar. Bozulursa build patlar. |
-| `keystatic.config.ts` | CMS şeması. Değiştirirsen mevcut içeriklerle uyum bozulur. |
+| `keystatic.config.tsx` | CMS şeması. Değiştirirsen mevcut içeriklerle uyum bozulur. `.tsx` uzantılıdır — JSX kullanılır. |
 | `src/pages/api/**` | Auth, contact, GitHub proxy. Backend logic. |
 | `src/content/**` | CMS tarafından yönetilir. Elle düzenleme yapma. |
 | `wrangler.toml` | Cloudflare konfigürasyonu. Yanlış değişiklik deploy'u bozar. |
 | `src/env.d.ts` | TypeScript type tanımları. |
-| `src/content.config.ts` | Astro content collections. `keystatic.config.ts` ile eşleşmeli. |
+| `src/content.config.ts` | Astro content collections. `keystatic.config.tsx` ile eşleşmeli. |
+| `public/_redirects` | Cloudflare edge yönlendirme. `/admin → /keystatic` kuralı burada. |
+| `public/templates/*.csv` | Toplu aktarım CSV şablonları. Değiştirilirse `/toplu` sayfasıyla uyum kontrol et. |
 
 ### Astro Dosya Yapısı — Script vs Template
 
