@@ -17,35 +17,45 @@ function KeystaticMark() {
             s.textContent = `
                 /* Branch picker + git menü kapsayıcısı */
                 div:has(> [aria-label="git actions"]) { display: none !important; }
-                /* Kullanıcı adı butonu */
+                /* Kullanıcı adı / avatar butonu */
                 [aria-label="User menu"] { display: none !important; }
                 /* GitHub.com'a giden tüm linkler (View on GitHub, repo linki vb.) */
                 a[href*="github.com"] { display: none !important; }
+                /* Dashboard: "Hello, ...!" başlığı + avatar satırı */
+                h1:has(+ section) { display: none !important; }
+                /* Dashboard: "CURRENT BRANCH" + "New branch" bölümü */
+                section:has([aria-label="git actions"]),
+                section:has(button[aria-label*="branch"]),
+                div:has(> button[aria-label*="branch"]) { display: none !important; }
             `;
             document.head.appendChild(s);
         }
 
         // ── MutationObserver ile metin tabanlı gizleme ─────────────────────
-        // (Dashboard "New branch", "Create pull request" vb. butonları)
-        const HIDE_TEXTS = new Set([
+        // startsWith kullan — "New branch..." gibi noktalı varyantları da yakala
+        const HIDE_PREFIXES = [
             'New branch', 'Delete branch',
             'Create pull request', 'Current branch',
-        ]);
+            'Pull request #', 'Hello, ',
+        ];
         const hideByText = () => {
+            // Butonlar
             document.querySelectorAll<HTMLElement>('button, [role="button"]').forEach(el => {
                 const text = el.textContent?.trim() ?? '';
-                if (HIDE_TEXTS.has(text)) {
-                    // Butonu ve varsa caption/wrapper'ını gizle
+                if (HIDE_PREFIXES.some(p => text.startsWith(p))) {
                     let target: HTMLElement = el;
-                    const parent = el.closest('[class]');
-                    if (parent instanceof HTMLElement) target = parent;
+                    const parent = el.parentElement;
+                    if (parent && parent !== document.body) target = parent;
                     target.style.setProperty('display', 'none', 'important');
                 }
             });
-            // "Pull request #N" butonları
-            document.querySelectorAll<HTMLElement>('button, [role="button"]').forEach(el => {
-                if (/^Pull request #\d+$/.test(el.textContent?.trim() ?? '')) {
-                    el.style.setProperty('display', 'none', 'important');
+            // "Hello, username!" başlığı (h1/h2)
+            document.querySelectorAll<HTMLElement>('h1, h2').forEach(el => {
+                const text = el.textContent?.trim() ?? '';
+                if (text.startsWith('Hello, ')) {
+                    const section = el.closest('section, div[class]');
+                    const target = section instanceof HTMLElement ? section : el;
+                    target.style.setProperty('display', 'none', 'important');
                 }
             });
         };

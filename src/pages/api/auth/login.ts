@@ -74,10 +74,13 @@ export const POST: APIRoute = async (context) => {
 
         const cookieValue = `${payload}.${signature}`;
 
+        // HTTPS kontrolü — localhost'ta (HTTP) secure:true cookie saklanmaz
+        const isSecure = context.request.url.startsWith('https://');
+
         // Cookie set et
         context.cookies.set('netmimar_session', cookieValue, {
             httpOnly: true,
-            secure: true,
+            secure: isSecure,
             sameSite: 'lax',
             path: '/',
             maxAge: 60 * 60 * 24, // 24 saat
@@ -88,7 +91,7 @@ export const POST: APIRoute = async (context) => {
         // Böylece "Log in with GitHub" butonu görünmez, GitHub OAuth gerekmez.
         context.cookies.set('keystatic-gh-access-token', env.GITHUB_TOKEN, {
             httpOnly: false, // Keystatic frontend JS ile okuyor (document.cookie)
-            secure: true,
+            secure: isSecure,
             sameSite: 'lax',
             path: '/',
             maxAge: 60 * 60 * 24, // 24 saat
