@@ -152,6 +152,8 @@ Singleton = Tek bir kayıt. Birden fazla oluşturulamaz. Site genelinde bir tane
 | `metaKeywords` | text | Anahtar kelimeler | `<head>` |
 | `headerScripts` | text | Head script'leri (Analytics vb.) | `<head>` içinde `set:html` ile render |
 | `footerScripts` | text | Footer script'leri (chat vb.) | `</body>` öncesinde `set:html` ile render |
+| `contactEmail` | text | Bildirim e-postası (iletişim formu) | `/api/contact` endpoint'i e-posta gönderir |
+| `contactEmailSenderName` | text | Gönderici adı | E-postada "Kimden" kısmı |
 | `kvkkText` | document | KVKK aydınlatma (zengin metin) | `/kvkk` sayfası |
 | `privacyPolicy` | document | Gizlilik politikası (zengin metin) | `/gizlilik` sayfası |
 
@@ -413,7 +415,7 @@ const content = await service.content();
 |-----|-------|-------|-------|
 | `/api/auth/login` | POST | `pages/api/auth/login.ts` | E-posta + şifre doğrulama, 2 cookie set etme, `?next=` destekli yönlendirme |
 | `/api/auth/logout` | GET/POST | `pages/api/auth/logout.ts` | 2 cookie silme, `/login`'e yönlendirme |
-| `/api/contact` | POST | `pages/api/contact.ts` | İletişim formu → D1 veritabanına kayıt |
+| `/api/contact` | POST | `pages/api/contact.ts` | İletişim formu → D1'e kaydet + Resend ile e-posta bildirimi gönder |
 | `/api/import` | POST | `pages/api/import.ts` | CSV parse → GitHub API ile toplu içerik dosyası oluşturma/güncelleme |
 | `/api/keystatic/[...params]` | ALL | `pages/api/keystatic/[...params].ts` | GitHub API proxy + internal auth route handler |
 
@@ -453,6 +455,7 @@ base64(JSON.stringify({ email, iat, exp })).HMAC_SHA256_SIGNATURE
 - İmza `COOKIE_SECRET` ile `HMAC-SHA256` kullanılarak üretilir
 - İmza URL-safe Base64 formatındadır (`+` → `-`, `/` → `_`, trailing `=` kaldırılır)
 - **httpOnly: true** — JavaScript erişemez, güvenli
+- **`secure` flag:** HTTPS'de `true`, HTTP'de (localhost) `false` — `context.request.url.startsWith('https://')` ile dinamik belirlenir. `secure: true` sabit yapılırsa localhost'ta cookie saklanmaz ve giriş çalışmıyor gibi görünür.
 - **Amacı:** Middleware, bu cookie'yi kontrol ederek `/keystatic` ve `/api/keystatic` erişimini doğrular
 
 #### 2. `keystatic-gh-access-token` — GitHub Token Cookie
@@ -546,6 +549,7 @@ Internal route'lar dışındaki tüm istekler GitHub API'ye proxy'lenir:
 | `CLIENT_EMAIL` | `login.ts` | Admin paneli giriş e-postası | `admin@example.com` |
 | `CLIENT_PASSWORD` | `login.ts` | Admin paneli giriş şifresi | `SecurePass123!` |
 | `COOKIE_SECRET` | `middleware.ts` + `login.ts` | HMAC imzalama anahtarı (min 32 karakter) | `cEsnqL2I0StPtsps7D+n5KdSz...` |
+| `RESEND_API_KEY` | `api/contact.ts` | Resend.com API anahtarı (iletişim formu e-posta bildirimi) | `re_xxxx...` |
 
 ### Değişkenler Detaylı Açıklama
 
@@ -613,6 +617,20 @@ cp .env.example .env
 
 > **Kritik:** `.env` dosyası `.gitignore`'a eklidir. ASLA Git'e commit edilmemelidir.
 
+#### `RESEND_API_KEY` — Resend E-posta API Anahtarı
+
+**Ne işe yarıyor?** İletişim formu doldurulduğunda müşteriye e-posta bildirimi gönderir. Resend, Cloudflare Workers ile uyumlu HTTP tabanlı bir e-posta servisidir (Workers'ta klasik SMTP/TCP soketi açılamaz).
+
+**Nereden alınır?**
+1. [resend.com](https://resend.com) → ücretsiz hesap açın (aylık 3.000 e-posta, günlük 100)
+2. Dashboard → Domains → müşterinin domain'ini ekleyin ve DNS kaydı ile doğrulatın
+3. Dashboard → API Keys → yeni anahtar oluşturun
+4. Cloudflare Dashboard → Pages → Proje → Settings → Environment Variables → `RESEND_API_KEY` olarak ekleyin
+
+> **Boş bırakılırsa ne olur?** `RESEND_API_KEY` tanımlı değilse veya `contactEmail` (Keystatic → Site Ayarları'ndan) boş bırakılmışsa e-posta gönderilmez — form verisi D1 veritabanına kaydedilmeye devam eder.
+
+> **Gönderici adres:** Domain doğrulaması yapılana kadar `from` adresi `onboarding@resend.dev` olarak kalır. Doğrulama sonrası `noreply@musteri-domain.com` gibi özel adres kullanılabilir (`contact.ts` içinde güncellenir).
+
 ### Local vs Production Farkı
 
 `keystatic.config.tsx` içinde:
@@ -677,31 +695,93 @@ Admin kullanıcısına (müşteriye değil, siteyi yöneten kişiye) özel bir C
 
 ## 17. Keystatic UI Özelleştirmeleri
 
-### GitHub Öğelerinin Gizlenmesi
+### GitHub Öğelerinin Gizlenmesi / Değiştirilmesi
 
-Keystatic admin paneli GitHub modunda çalışırken bazı GitHub'a özgü UI öğeleri gösterir (branch seçici, "View on GitHub" linkleri, kullanıcı adı vb.). Bu öğeler esnafın görmesi gerekmediğinden gizlenmiştir.
+Keystatic admin paneli GitHub modunda çalışırken bazı GitHub'a özgü UI öğeleri gösterir (branch seçici, "View on GitHub" linkleri, kullanıcı adı vb.). Bu öğeler esnafin görmesi gerekmediğinden gizlenmiş ya da değiştirilmiştir.
 
-**Yöntem:** `keystatic.config.tsx` içinde `ui.brand.mark` React bileşeni kullanılır. Bu bileşen:
+**Yöntem:** `keystatic.config.tsx` içinde `ui.brand.mark` React bileşeni (`KeystaticMark`) kullanılır. Bu bileşen:
 - `useEffect` ile bir `<style>` etiketi enjekte eder (CSS ile gizleme)
-- `MutationObserver` ile dinamik olarak oluşturulan butonları metin bazında gizler
+- `MutationObserver` ile dinamik olarak yüklenen öğeleri metin bazında gizler veya değiştirir
 
-**Gizlenen öğeler:**
-- Sidebar'daki branch picker + git menü (dal değiştirme, yeni dal oluşturma)
-- `[aria-label="User menu"]` — kullanıcı adı/GitHub avatar menüsü
+**CSS ile gizlenenler:**
+- `div:has(> [aria-label="git actions"])` — sidebar'daki branch picker + git menü kapsayıcısı
+- `[aria-label="User menu"]` — kullanıcı adı / GitHub avatar menüsü
 - `a[href*="github.com"]` — tüm GitHub.com linkleri ("View on GitHub" dahil)
-- "New branch", "Delete branch", "Create pull request" butonları (MutationObserver ile)
+
+**MutationObserver ile gizlenenler** (`startsWith` tablanlı eşleşme — "New branch..." gibi noktalı varyantlar da yakalanr):
+- `'New branch'`, `'Delete branch'`, `'Create pull request'`, `'Current branch'`, `'Pull request #'` ile başlayan butonlar
+- Dashboard'daki "CURRENT BRANCH / main" bölümü: `'CURRENT BRANCH'` metnini taşıyan yapı bulunup 4 seviye üst kapsayıcısı gizlenir
+
+**MutationObserver ile değiştirilenler:**
+- `'Hello, '` ile başlayan `h1/h2/h3` öğeleri — `textContent` doğrudan `'Hoşgeldiniz'` ile değiştirilir (gizlemek yerine; böylece düzen bozulmaz)
 
 **Neden `keystatic.config.tsx`?**  
 Keystatic'in `ui.brand.mark` özelliği bir React bileşeni kabul eder. JSX kullanabilmek için dosya uzantısı `.ts`'ten `.tsx`'e dönüştürülmüştür. `tsconfig.json`'da `"jsx": "react-jsx"` ve `"jsxImportSource": "react"` zaten tanımlıdır.
 
+> **Önemli:** `MutationObserver` sadece istemci tarafında çalışır. Bu bileşen SSR'da render edilmez, Astro build'ini etkilemez.
+
+> **Dikkat:** Keystatic güncellemesi HTML yapısını veya `aria-label` değerlerini değiştirebilir. Güncelleme sonrası gizlenen öğelerin hâlâ gizli, "Hoşgeldiniz" yazısının göründüğünü kontrol edin.
+
 ### Brand İsmi
 
-`ui.brand.name` → `'Hoşgeldiniz'` olarak ayarlanmıştır. Sidebar üst köşesinde görünür.
-
-> **Dikkat:** Keystatic güncellemesi bu CSS sınıf adlarını değiştirebilir. Güncelleme sonrası gizlenen öğelerin hâlâ gizli olduğunu kontrol edin.
+`ui.brand.name` → `'Hoşgeldiniz'` olarak ayarlanmıştır. Sidebar sol üst köşesinde görünür.
 
 - **`development`** (npm run dev): Keystatic dosyaları doğrudan disk üzerinde okur/yazar. GitHub'a gitmez.
 - **`production`** (deploy sonrası): Keystatic, GitHub API üzerinden dosyaları okur/yazar.
+
+---
+
+## 18. İletişim Formu E-posta Bildirimi (Resend)
+
+### Genel Bakış
+
+İletişim formu gönderiminde iki şey olur:
+1. **Her zaman:** Form verisi Cloudflare D1 veritabanına kaydedilir
+2. **Koşullu:** `RESEND_API_KEY` env değişkeni ve Keystatic'teki `contactEmail` alanı doluysa Resend API aracılığıyla e-posta bildirimi gönderilir
+
+E-posta gönderilemese bile form başarılı sayılır — ziyaretçiye hata gösterilmez, D1 kaydı yapılır.
+
+### Neden Resend?
+
+Cloudflare Workers **ham TCP soketi açamaz** — dolayısıyla klasik SMTP/nodemailer çalışmaz. Resend, saf HTTP API üzerinden e-posta gönderir ve Cloudflare Workers ile tam uyumludur.
+
+### Yapılandırma
+
+**1. API Anahtarı (developer yapar — tek seferlik):**
+- [resend.com](https://resend.com) → ücretsiz hesap (aylık 3.000 e-posta, günlük 100)
+- Dashboard → Domains → müşterinin domain'ini ekle → DNS TXT kaydı ile doğrulat
+- Dashboard → API Keys → yeni anahtar oluştur
+- Cloudflare Dashboard → Pages → Proje → Settings → Environment Variables → `RESEND_API_KEY`
+- Local: `.env` dosyasına `RESEND_API_KEY=re_xxx...` ekle
+
+**2. Bildirim adresi (müşteri yapar — panelden):**
+- Keystatic → Site Ayarları → **Bildirim E-postası** → müşterinin kendi e-postasını girer
+- İsteğe bağlı: **Gönderici Adı** (varsayılan: "İletişim Formu")
+- Save → GitHub'a commit → Cloudflare otomatik build → aktif
+
+### Bildirim E-posta İçeriği
+
+- **Konu:** `Yeni Mesaj: {ziyaretçinin adı}`
+- **Kimden:** `{Gönderici Adı} <onboarding@resend.dev>` (domain doğrulanana kadar)
+- **Yanıtla (reply-to):** Ziyaretçinin e-postası — müşteri direkt "Yanıtla" diyerek cevap verebilir
+- **İçerik:** HTML tablo formatında isim, e-posta, telefon, mesaj
+
+### Gönderici Adresi Özelleştirme (Domain Doğrulama Sonrası)
+
+Domain doğrulandıktan sonra `src/pages/api/contact.ts` içindeki `from` satırı güncellenir:
+
+```typescript
+from: `${senderName} <noreply@musteri-domain.com>`,
+```
+
+### settings.json Alanları
+
+| Alan | Keystatic Etiketi | Açıklama |
+|------|-------------------|----------|
+| `contactEmail` | Bildirim E-postası | Bildirimlerin gideceği adres. Boş = e-posta yok |
+| `contactEmailSenderName` | Gönderici Adı | "Kimden" kısmı. Varsayılan: "İletişim Formu" |
+
+> **Önemli:** `settings.json` build sırasında bundle'a dahil edilir. Müşteri Keystatic'ten `contactEmail`'i değiştirip save edince GitHub'a commit gider → yeni build tetiklenir → yeni adres aktif olur. Bu işlem 1-2 dakika sürer.
 
 ---
 
@@ -928,6 +1008,7 @@ Bu bölüm, siteye yeni tasarım giydirmek isteyen developer için yazılmışt�
 | `src/content.config.ts` | Astro content collections. `keystatic.config.tsx` ile eşleşmeli. |
 | `public/_redirects` | Cloudflare edge yönlendirme. `/admin → /keystatic` kuralı burada. |
 | `public/templates/*.csv` | Toplu aktarım CSV şablonları. Değiştirilirse `/toplu` sayfasıyla uyum kontrol et. |
+| `src/content/singletons/settings.json` | `contactEmail` ve `contactEmailSenderName` alanları e-posta bildirimini yönetir. Boş bırakılırsa bildirim gitmez. |
 
 ### Astro Dosya Yapısı — Script vs Template
 
@@ -1169,6 +1250,8 @@ Bölüm 14'teki adımları takip edin.
 | `settings.json` silindi, site çöktü | `src/content/singletons/settings.json` dosyası olmalı. Admin panelden ilk açılışta oluşturulabilir. |
 | Görseller görünmüyor | Görseller `public/images/` altında olmalı. Path'in başında `/images/...` olduğundan emin olun. |
 | Login çalışmıyor | `CLIENT_EMAIL`, `CLIENT_PASSWORD` ve `COOKIE_SECRET` ortam değişkenleri tanımlı mı kontrol edin. |
+| Login başarılı ama hemen tekrar `/login`'e dönüyor | Cookie `secure: true` ile oluşturulmuş olabilir — HTTP'de (localhost) `secure: true` cookie saklanmaz. `login.ts`'de `isSecure` kontrolünün doğru çalıştığını kontrol edin. |
+| E-posta bildirimi gelmiyor | 1) `RESEND_API_KEY` env değişkeni tanımlı mı? 2) Keystatic → Site Ayarları → Bildirim E-postası dolu mu? 3) Resend'de domain doğrulandı mı? 4) Ücretsiz planda günlük 100 limit aşıldı mı? |
 | Keystatic paneli açılmıyor (prod) | `GITHUB_TOKEN` doğru mu? Token permission'ları yeterli mi? `PUBLIC_REPO_OWNER` ve `PUBLIC_REPO_NAME` doğru mu? |
 | Content değişiklikleri görünmüyor (prod) | Admin panelden save edildikten sonra 1-2 dakika bekleyin — Cloudflare otomatik build tetikler. CF Dashboard → Pages → Deployments'tan build durumunu kontrol edin. |
 | `npm run dev` çalışmıyor | `npm install` çalıştırdığınızdan emin olun. Node.js ≥ 18 gerekli. |
