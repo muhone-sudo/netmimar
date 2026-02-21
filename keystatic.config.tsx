@@ -179,6 +179,16 @@ export default config({
                     description: 'Canlı destek, chatbot vb. kodlar. </body> öncesine eklenir.',
                 }),
 
+                // — İletişim Formu Bildirimleri —
+                contactEmail: fields.text({
+                    label: 'Bildirim E-postası',
+                    description: 'İletişim formu doldurulduğunda bildirim gönderilecek e-posta adresi. Boş bırakılırsa e-posta gönderilmez, yalnızca veritabanına kaydedilir.',
+                }),
+                contactEmailSenderName: fields.text({
+                    label: 'Gönderici Adı',
+                    description: 'E-postalarda "Kimden" olarak görünecek isim. Örnek: "NetMimar İletişim Formu"',
+                }),
+
                 // — Yasal —
                 kvkkText: fields.document({
                     label: 'KVKK Aydınlatma Metni',

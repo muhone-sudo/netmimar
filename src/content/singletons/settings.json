@@ -10,5 +10,7 @@
   "metaDescription": "NetMimar ile işletmenizi dijital dünyaya taşıyın. Profesyonel web tasarım ve geliştirme hizmetleri.",
   "metaKeywords": "web tasarım, web geliştirme, dijital ajans, seo",
   "headerScripts": "Burada Header Scripts Yazıyor",
-  "footerScripts": "Burada Footer Scripts Yazıyor"
+  "footerScripts": "Burada Footer Scripts Yazıyor",
+  "contactEmail": "",
+  "contactEmailSenderName": "İletişim Formu"
 }
