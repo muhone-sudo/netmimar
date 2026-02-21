@@ -21,25 +21,18 @@ function KeystaticMark() {
                 [aria-label="User menu"] { display: none !important; }
                 /* GitHub.com'a giden tüm linkler (View on GitHub, repo linki vb.) */
                 a[href*="github.com"] { display: none !important; }
-                /* Dashboard: "Hello, ...!" başlığı + avatar satırı */
-                h1:has(+ section) { display: none !important; }
-                /* Dashboard: "CURRENT BRANCH" + "New branch" bölümü */
-                section:has([aria-label="git actions"]),
-                section:has(button[aria-label*="branch"]),
-                div:has(> button[aria-label*="branch"]) { display: none !important; }
             `;
             document.head.appendChild(s);
         }
 
-        // ── MutationObserver ile metin tabanlı gizleme ─────────────────────
-        // startsWith kullan — "New branch..." gibi noktalı varyantları da yakala
+        // ── MutationObserver ile metin tabanlı düzenleme ──────────────────
         const HIDE_PREFIXES = [
             'New branch', 'Delete branch',
             'Create pull request', 'Current branch',
-            'Pull request #', 'Hello, ',
+            'Pull request #',
         ];
         const hideByText = () => {
-            // Butonlar
+            // Butonları gizle
             document.querySelectorAll<HTMLElement>('button, [role="button"]').forEach(el => {
                 const text = el.textContent?.trim() ?? '';
                 if (HIDE_PREFIXES.some(p => text.startsWith(p))) {
@@ -49,12 +42,33 @@ function KeystaticMark() {
                     target.style.setProperty('display', 'none', 'important');
                 }
             });
-            // "Hello, username!" başlığı (h1/h2)
-            document.querySelectorAll<HTMLElement>('h1, h2').forEach(el => {
-                const text = el.textContent?.trim() ?? '';
-                if (text.startsWith('Hello, ')) {
-                    const section = el.closest('section, div[class]');
-                    const target = section instanceof HTMLElement ? section : el;
+
+            // "Hello, username!" → "Hoşgeldiniz" olarak değiştir
+            document.querySelectorAll<HTMLElement>('h1, h2, h3').forEach(el => {
+                if (el.textContent?.trim().startsWith('Hello, ') && !el.dataset.nmPatched) {
+                    el.dataset.nmPatched = '1';
+                    el.textContent = 'Hoşgeldiniz';
+                }
+            });
+
+            // "CURRENT BRANCH" bölümünü gizle:
+            // Keystatic bu bölümü "CURRENT BRANCH" etiketiyle bir div/section içinde render eder
+            document.querySelectorAll<HTMLElement>('*').forEach(el => {
+                if (
+                    el.children.length === 0 &&
+                    el.textContent?.trim() === 'CURRENT BRANCH' &&
+                    !el.dataset.nmPatched
+                ) {
+                    el.dataset.nmPatched = '1';
+                    // Üst kapsayıcıyı bul ve gizle (genellikle 2-3 seviye üstte)
+                    let target: HTMLElement = el;
+                    for (let i = 0; i < 4; i++) {
+                        const p = target.parentElement;
+                        if (!p || p === document.body) break;
+                        target = p;
+                        // Kapsamlı bir kapsayıcıya ulaştıysak dur
+                        if (target.tagName === 'SECTION' || target.tagName === 'ARTICLE') break;
+                    }
                     target.style.setProperty('display', 'none', 'important');
                 }
             });
