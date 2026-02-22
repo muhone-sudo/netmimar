@@ -1294,3 +1294,82 @@ wrangler d1 execute netmimar-contacts --remote --file=./schema.sql
 # D1'deki verileri sorgula
 wrangler d1 execute netmimar-contacts --remote --command "SELECT * FROM contacts"
 ```
+
+---
+
+## 19. Sitemap ve SEO Meta Etiketleri
+
+### 19.1 Genel Bakış
+
+Bu projede iki tür site haritası bulunur:
+
+| Tür | URL | Açıklama |
+|-----|-----|----------|
+| XML Sitemap | `/sitemap.xml` | Arama motorları için standart format |
+| İnsan Okunabilir | `/siteharitasi` | Ziyaretçiler için sayfa listesi |
+
+### 19.2 XML Sitemap (`src/pages/sitemap.xml.ts`)
+
+- **Dinamik endpoint** — `prerender = false` (Cloudflare Worker'da çalışır)
+- Keystatic reader ile tüm koleksiyonları çeker: hizmetler, projeler, blog
+- Statik sayfalar + dinamik içerik sayfaları birleştirilerek `<urlset>` üretilir
+- `Content-Type: application/xml`, `Cache-Control: public, max-age=3600` döner
+- `PUBLIC_SITE_URL` env değişkeni mutlak URL'ler için zorunludur
+
+### 19.3 İnsan Okunabilir Site Haritası (`src/pages/siteharitasi.astro`)
+
+- Genel Sayfalar, Hizmetler, Projeler, Blog Yazıları bölümlerini listeler
+- Sayfanın üstünde `/sitemap.xml` bağlantısı bulunur
+- `prerender = false` (dinamik içerik)
+
+### 19.4 Open Graph ve Twitter Card Meta Etiketleri
+
+`BaseLayout.astro` şu meta etiketleri üretir:
+
+```html
+<link rel="canonical" href="..." />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="..." />
+<meta property="og:title" content="..." />
+<meta property="og:description" content="..." />
+<meta property="og:url" content="..." />
+<meta property="og:image" content="..." />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="..." />
+<meta name="twitter:description" content="..." />
+<meta name="twitter:image" content="..." />
+```
+
+**BaseLayout props (yeni):**
+
+| Prop | Tip | Açıklama |
+|------|-----|----------|
+| `image` | `string \| null` | OG/Twitter görseli — mutlak URL veya `/images/...` gibi path |
+| `canonicalUrl` | `string` | Canonical URL override — varsayılan: `PUBLIC_SITE_URL + pathname` |
+
+**İçerik sayfaları:**
+
+| Sayfa | Description kaynağı | Image kaynağı |
+|-------|---------------------|---------------|
+| `blog/[slug]` | `post.description` (CMS alanı) | `post.coverImage` |
+| `hizmetler/[slug]` | `service.shortDescription` (mevcut alan) | `service.featuredImage` |
+| `projeler/[slug]` | `project.shortSummary` (CMS alanı) | `project.coverImage` |
+
+### 19.5 Keystatic CMS — Yeni Alanlar
+
+**Blog** şemasına eklendi:
+- `description` — "Kısa Açıklama (SEO)" — multiline text, 150-160 karakter önerilir
+
+**Projects** şemasına eklendi:
+- `shortSummary` — "Kısa Özet (SEO)" — multiline text
+
+### 19.6 Ortam Değişkeni: `PUBLIC_SITE_URL`
+
+```
+PUBLIC_SITE_URL=https://www.example.com
+```
+
+- Protokol dahil, **sondaki slash olmadan**
+- Local dev: `http://localhost:8788`
+- Production Cloudflare Pages: Cloudflare dashboardda veya `wrangler.toml`'da tanımlanır
+- Eksik bırakılırsa canonical/OG URL'leri boş kalır (hata vermez, uyarı vermez)
