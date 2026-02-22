@@ -8,6 +8,7 @@ interface CloudflareEnv {
     REPO_NAME: string;
     PUBLIC_REPO_OWNER: string;
     PUBLIC_REPO_NAME: string;
+    PUBLIC_SITE_URL: string;
     CLIENT_EMAIL: string;
     CLIENT_PASSWORD: string;
     COOKIE_SECRET: string;

@@ -6,6 +6,10 @@ interface Props {
   title?: string;
   description?: string;
   keywords?: string;
+  /** OG/Twitter kartı görseli için mutlak URL veya /... ile başlayan path */
+  image?: string | null;
+  /** Canonical URL override (varsayilan: PUBLIC_SITE_URL + mevcut path) */
+  canonicalUrl?: string;
 }
 
 // CMS'den site ayarlarını oku
@@ -43,7 +47,15 @@ const {
   title = `${siteTitle} — ${slogan}`,
   description = metaDesc,
   keywords = metaKeywords,
+  image = null,
+  canonicalUrl,
 } = Astro.props;
+
+const siteUrl = import.meta.env.PUBLIC_SITE_URL?.replace(/\/$/, '') || '';
+const canonical = canonicalUrl || (siteUrl ? `${siteUrl}${Astro.url.pathname}` : '');
+const ogImage = image
+  ? (image.startsWith('http') ? image : `${siteUrl}${image}`)
+  : (siteUrl ? `${siteUrl}/images/brand/og-default.png` : '');
 ---
 
 <!DOCTYPE html>
@@ -54,6 +66,24 @@ const {
     <meta name="description" content={description} />
     {keywords && <meta name="keywords" content={keywords} />}
     <meta name="generator" content={Astro.generator} />
+    {canonical && <link rel="canonical" href={canonical} />}
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={siteTitle} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    {canonical && <meta property="og:url" content={canonical} />}
+    {ogImage && <meta property="og:image" content={ogImage} />}
+    {ogImage && <meta property="og:image:width" content="1200" />}
+    {ogImage && <meta property="og:image:height" content="630" />}
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content={ogImage ? 'summary_large_image' : 'summary'} />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    {ogImage && <meta name="twitter:image" content={ogImage} />}
+
     <link rel="icon" href={favicon} />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

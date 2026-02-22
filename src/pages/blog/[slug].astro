@@ -20,7 +20,11 @@ if (!post) {
 const content = await post.body();
 ---
 
-<BaseLayout title={`${post.title} — Blog`}>
+<BaseLayout
+  title={`${post.title} — Blog`}
+  description={(post as any).description || post.title}
+  image={post.coverImage || null}
+>
     <article class="py-20 bg-surface">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Breadcrumb -->

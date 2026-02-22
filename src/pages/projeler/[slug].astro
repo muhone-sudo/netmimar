@@ -20,7 +20,11 @@ if (!project) {
 const content = await project.description();
 ---
 
-<BaseLayout title={`${project.projectName} — Projeler`}>
+<BaseLayout
+  title={`${project.projectName} — Projeler`}
+  description={(project as any).shortSummary || project.projectName}
+  image={project.coverImage || null}
+>
     <article class="py-20 bg-surface">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Breadcrumb -->

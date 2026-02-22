@@ -20,7 +20,11 @@ if (!service) {
 const content = await service.content();
 ---
 
-<BaseLayout title={`${service.title} — Hizmetler`}>
+<BaseLayout
+  title={`${service.title} — Hizmetler`}
+  description={service.shortDescription || service.title}
+  image={service.featuredImage || null}
+>
     <article class="py-20 bg-surface">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <!-- Breadcrumb -->

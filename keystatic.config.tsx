@@ -341,6 +341,11 @@ export default config({
                 client: fields.text({ label: 'Müşteri' }),
                 date: fields.date({ label: 'Tarih' }),
                 category: fields.text({ label: 'Kategori' }),
+                shortSummary: fields.text({
+                    label: 'Kısa Özet (SEO)',
+                    multiline: true,
+                    description: 'Arama motoru sonuçlarında ve proje listesinde görünür.',
+                }),
                 coverImage: fields.image({
                     label: 'Kapak Görseli',
                     directory: 'public/images/projects',
@@ -399,6 +404,11 @@ export default config({
                     label: 'Kapak Görseli',
                     directory: 'public/images/blog',
                     publicPath: '/images/blog/',
+                }),
+                description: fields.text({
+                    label: 'Kısa Açıklama (SEO)',
+                    multiline: true,
+                    description: 'Arama motoru sonuçlarında ve paylaşımlarda görünür. Boş bırakılırsa başlık kullanılır.',
                 }),
                 body: fields.document({
                     label: 'İçerik',

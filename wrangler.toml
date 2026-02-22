@@ -20,4 +20,5 @@ pages_build_output_dir = "./dist"
 # CLIENT_EMAIL    - Müşteri giriş e-postası
 # CLIENT_PASSWORD - Müşteri giriş şifresi
 # COOKIE_SECRET   - Session cookie imzalama anahtarı (min 32 karakter)
+# PUBLIC_SITE_URL - Sitenin tam URL'si, sondaki slash olmadan (ör: https://www.netmimar.com)
 # RESEND_API_KEY  - Resend.com API anahtarı (iletişim formu e-posta bildirimleri)

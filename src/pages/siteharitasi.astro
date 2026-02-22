@@ -1,0 +1,118 @@
+---
+export const prerender = false;
+
+import BaseLayout from "../layouts/BaseLayout.astro";
+import { getReader } from "../lib/reader";
+
+interface PageLink {
+    href: string;
+    label: string;
+}
+
+interface Section {
+    title: string;
+    pages: PageLink[];
+}
+
+const staticSections: Section[] = [
+    {
+        title: 'Genel Sayfalar',
+        pages: [
+            { href: '/', label: 'Ana Sayfa' },
+            { href: '/hizmetler', label: 'Hizmetler' },
+            { href: '/projeler', label: 'Projeler' },
+            { href: '/blog', label: 'Blog' },
+            { href: '/ekip', label: 'Ekibimiz' },
+            { href: '/gizlilik', label: 'Gizlilik Politikası' },
+            { href: '/kvkk', label: 'KVKK Aydınlatma Metni' },
+        ],
+    },
+];
+
+const reader = getReader();
+const [services, projects, posts] = await Promise.all([
+    reader.collections.services.all(),
+    reader.collections.projects.all(),
+    reader.collections.blog.all(),
+]);
+
+const dynamicSections: Section[] = [
+    {
+        title: 'Hizmetler',
+        pages: services.map((s) => ({
+            href: `/hizmetler/${s.slug}`,
+            label: s.entry.title || s.slug,
+        })),
+    },
+    {
+        title: 'Projeler',
+        pages: projects.map((p) => ({
+            href: `/projeler/${p.slug}`,
+            label: p.entry.projectName || p.slug,
+        })),
+    },
+    {
+        title: 'Blog Yazıları',
+        pages: posts.map((p) => ({
+            href: `/blog/${p.slug}`,
+            label: p.entry.title || p.slug,
+        })),
+    },
+];
+
+const allSections = [...staticSections, ...dynamicSections];
+---
+
+<BaseLayout
+    title="Site Haritası"
+    description="Sitedeki tüm sayfaların listesi."
+    canonicalUrl={`${import.meta.env.PUBLIC_SITE_URL || ''}/siteharitasi`}
+>
+    <section class="py-20 bg-surface">
+        <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="mb-12">
+                <h1 class="text-3xl sm:text-4xl font-bold text-primary mb-3">
+                    Site Haritası
+                </h1>
+                <p class="text-text-muted">
+                    Sitedeki tüm sayfalara buradan ulaşabilirsiniz.
+                    <a
+                        href="/sitemap.xml"
+                        class="ml-2 text-primary underline underline-offset-2 text-sm"
+                        target="_blank"
+                        rel="noopener"
+                    >
+                        XML Sitemap →
+                    </a>
+                </p>
+            </div>
+
+            <div class="grid gap-10">
+                {
+                    allSections.map((section) =>
+                        section.pages.length > 0 ? (
+                            <div>
+                                <h2 class="text-lg font-semibold text-text-heading mb-4 pb-2 border-b border-border">
+                                    {section.title}
+                                </h2>
+                                <ul class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                                    {section.pages.map((page) => (
+                                        <li>
+                                            <a
+                                                href={page.href}
+                                                class="flex items-center gap-2 text-text hover:text-primary transition-colors py-1"
+                                            >
+                                                <span class="text-primary opacity-60 text-xs">›</span>
+                                                {page.label}
+                                            </a>
+                                        </li>
+                                    ))}
+                                </ul>
+                            </div>
+                        ) : null
+                    )
+                }
+            </div>
+        </div>
+    </section>
+</BaseLayout>
