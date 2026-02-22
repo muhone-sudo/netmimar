@@ -1,7 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getReader } from '../lib/reader';
 
-export const prerender = false;
+export const prerender = true;
 
 function escapeXml(str: string): string {
     return str
